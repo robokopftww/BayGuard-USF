@@ -8,6 +8,7 @@ import {
   RefreshCcw,
   ShieldAlert,
   Siren,
+  Smartphone,
   Waves,
   Wind,
   Workflow,
@@ -16,6 +17,7 @@ import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { startTransition, useCallback, useEffect, useState, type ReactNode } from 'react'
 
 import { IntelMap } from './components/IntelMap'
+import SmsPage from './pages/SmsPage'
 import './App.css'
 import type { IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types.ts'
 
@@ -224,6 +226,7 @@ function App() {
               />
             }
           />
+          <Route path="/sms" element={<SmsPage activeScenario={scenario} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
@@ -281,10 +284,10 @@ function OverviewPage({
             icon={<BellRing size={18} />}
           />
           <QuickActionCard
-            to="/alerts"
-            title="Agent status"
-            caption="Check which bots are influencing the current decision."
-            icon={<BrainCircuit size={18} />}
+            to="/sms"
+            title="SMS alerts"
+            caption="Manage subscribers and test live or drill dispatches."
+            icon={<Smartphone size={18} />}
           />
         </div>
 
@@ -679,7 +682,7 @@ function compactAgentSummary(value: string): string {
 const fallbackActions = [
   'Keep the watch floor polling every few minutes while no major alert is active.',
   'Use the scenario selector to preview flood, hurricane, and compound-event workflows.',
-  'Wire SMS or push escalation only after the alert thresholds are finalized.',
+  'Use the SMS page to manage subscribers and rehearse dry-run drills before live texting is enabled.',
 ]
 
 const scenarioOptions: Array<{ value: SimulationScenario; label: string }> = [
@@ -693,6 +696,7 @@ const navItems = [
   { to: '/', label: 'Overview', caption: 'Citywide posture', icon: Compass },
   { to: '/map', label: 'Map Room', caption: 'Spatial signal view', icon: Map },
   { to: '/alerts', label: 'Alerts', caption: 'Incidents and notices', icon: BellRing },
+  { to: '/sms', label: 'SMS', caption: 'Subscribers and dispatch', icon: Smartphone },
 ]
 
 const pageMeta: Record<string, { kicker: string; title: string; description: string }> = {
@@ -713,6 +717,12 @@ const pageMeta: Record<string, { kicker: string; title: string; description: str
     title: 'A focused page for incidents, official notices, and action language.',
     description:
       'This alert desk is built for escalation: what happened, how serious it is, and what the operations team should say next.',
+  },
+  '/sms': {
+    kicker: 'SMS',
+    title: 'A simple control room for who gets texted and when.',
+    description:
+      'Manage the BayGuard SMS roster, keep drills in dry-run mode, and switch to live sending only after Twilio is configured.',
   },
 }
 

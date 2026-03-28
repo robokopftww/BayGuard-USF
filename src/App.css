@@ -295,6 +295,11 @@
   align-items: start;
 }
 
+.page-grid-sms {
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  align-items: start;
+}
+
 .hero-card,
 .panel-card,
 .map-stage {
@@ -314,6 +319,10 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 251, 255, 0.92));
 }
 
+.sms-hero {
+  grid-column: 1 / -1;
+}
+
 .hero-mast p {
   margin-top: 0.75rem;
   color: var(--slate-soft);
@@ -324,6 +333,169 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+.sms-status-grid,
+.field-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.sms-status-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sms-form,
+.dispatch-console {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field span {
+  color: var(--slate-soft);
+  font: 600 0.8rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.field input,
+.field select {
+  inline-size: 100%;
+  min-block-size: 3rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 18px;
+  color: var(--slate-strong);
+  background: rgba(255, 255, 255, 0.84);
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: rgba(22, 137, 140, 0.3);
+  box-shadow: 0 0 0 4px rgba(64, 184, 162, 0.12);
+}
+
+.choice-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.choice-chip,
+.ghost-action,
+.primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-block-size: 2.9rem;
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  font: 600 0.82rem/1 var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.choice-chip {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  color: var(--slate-soft);
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.choice-chip.active {
+  color: #0c3f48;
+  border-color: rgba(22, 137, 140, 0.22);
+  background: linear-gradient(135deg, rgba(64, 184, 162, 0.2), rgba(197, 255, 106, 0.24));
+}
+
+.primary-action,
+.ghost-action {
+  border: none;
+  cursor: pointer;
+}
+
+.primary-action {
+  justify-self: start;
+  color: #f8fbff;
+  background: linear-gradient(135deg, #111c34, #186f89);
+}
+
+.primary-action:disabled,
+.ghost-action:disabled,
+.choice-chip:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.ghost-action {
+  color: var(--slate-strong);
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.subscriber-row,
+.dispatch-row {
+  padding: 1rem;
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.subscriber-row-top,
+.subscriber-row-foot,
+.dispatch-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.subscriber-row-top span,
+.dispatch-row-top span,
+.subscriber-row p,
+.dispatch-row p,
+.subscriber-row small,
+.dispatch-row small {
+  color: var(--slate-soft);
+}
+
+.subscriber-row p,
+.dispatch-row p {
+  margin: 0.75rem 0;
+}
+
+.sms-banner {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 1rem 1.1rem;
+  border-radius: 22px;
+}
+
+.sms-banner p {
+  margin: 0;
+}
+
+.sms-banner-success {
+  color: #0c3f48;
+  background: rgba(64, 184, 162, 0.14);
+  border: 1px solid rgba(64, 184, 162, 0.18);
+}
+
+.sms-banner-error {
+  color: #8c2d16;
+  background: rgba(247, 113, 88, 0.14);
+  border: 1px solid rgba(247, 113, 88, 0.2);
 }
 
 .quick-action-card {
@@ -390,7 +562,9 @@
 .official-alert-row,
 .zone-row,
 .station-card-modern,
-.empty-block {
+.empty-block,
+.subscriber-row,
+.dispatch-row {
   border-radius: 24px;
   background: rgba(15, 23, 42, 0.04);
 }
@@ -760,7 +934,8 @@
 
   .page-grid-overview,
   .page-grid-map,
-  .page-grid-alerts {
+  .page-grid-alerts,
+  .page-grid-sms {
     grid-template-columns: 1fr;
   }
 }
@@ -793,7 +968,9 @@
     grid-template-columns: 1fr;
   }
 
-  .hero-actions-grid {
+  .hero-actions-grid,
+  .sms-status-grid,
+  .field-grid {
     grid-template-columns: 1fr;
   }
 
@@ -801,5 +978,11 @@
   .map-loading,
   .map-fallback {
     block-size: 440px;
+  }
+
+  .subscriber-row-top,
+  .subscriber-row-foot,
+  .dispatch-row-top {
+    flex-direction: column;
   }
 }

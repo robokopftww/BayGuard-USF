@@ -7,7 +7,21 @@ import { fileURLToPath } from 'node:url'
 import { GoogleGenAI } from '@google/genai'
 
 import { createIntelSnapshot } from './orchestrator.ts'
-import type { IntelSnapshot, SimulationScenario } from '../shared/types.ts'
+import { getSmsRuntimeConfig } from './notifications/sender.ts'
+import {
+  dispatchSmsForScenario,
+  getSmsCenterState,
+  runAutomaticSmsEvaluation,
+  subscribeToSms,
+  unsubscribeFromSms,
+} from './notifications/service.ts'
+import type {
+  IntelSnapshot,
+  SimulationScenario,
+  SmsAlertType,
+  SmsSubscribeInput,
+  ThreatLevel,
+} from '../shared/types.ts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -23,6 +37,8 @@ app.use(express.json())
 let cache: { value: IntelSnapshot; fetchedAt: number } | null = null
 const cacheWindowMs = 2 * 60 * 1000
 const allowedScenarios: SimulationScenario[] = ['live', 'flood', 'hurricane', 'compound']
+const allowedThreatLevels: ThreatLevel[] = ['low', 'guarded', 'elevated', 'high', 'severe']
+const allowedAlertTypes: SmsAlertType[] = ['general', 'flood', 'storm', 'weather']
 
 function parseScenario(value: unknown): SimulationScenario {
   if (typeof value === 'string' && allowedScenarios.includes(value as SimulationScenario)) {
@@ -30,6 +46,26 @@ function parseScenario(value: unknown): SimulationScenario {
   }
 
   return 'live'
+}
+
+function parseThreatLevel(value: unknown): ThreatLevel {
+  if (typeof value === 'string' && allowedThreatLevels.includes(value as ThreatLevel)) {
+    return value as ThreatLevel
+  }
+
+  return 'high'
+}
+
+function parseAlertTypes(value: unknown): SmsAlertType[] {
+  if (!Array.isArray(value)) {
+    return ['general', 'flood', 'storm', 'weather']
+  }
+
+  const filtered = value.filter((item): item is SmsAlertType =>
+    typeof item === 'string' && allowedAlertTypes.includes(item as SmsAlertType),
+  )
+
+  return filtered.length > 0 ? filtered : ['general', 'flood', 'storm', 'weather']
 }
 
 app.get('/api/health', (_request, response) => {
@@ -66,6 +102,66 @@ app.get('/api/intel', async (request, response) => {
   } catch (error) {
     response.status(500).json({
       message: 'Unable to refresh BayGuard intelligence right now.',
+      details: error instanceof Error ? error.message : 'Unknown server error',
+    })
+  }
+})
+
+app.get('/api/sms', async (_request, response) => {
+  try {
+    response.json(await getSmsCenterState())
+  } catch (error) {
+    response.status(500).json({
+      message: 'Unable to load the SMS control room right now.',
+      details: error instanceof Error ? error.message : 'Unknown server error',
+    })
+  }
+})
+
+app.post('/api/sms/subscribers', async (request, response) => {
+  try {
+    const { name, phone, minThreatLevel, alertTypes } = request.body as Partial<SmsSubscribeInput>
+
+    if (!phone?.trim()) {
+      response.status(400).json({ message: 'Phone number is required.' })
+      return
+    }
+
+    const state = await subscribeToSms({
+      name,
+      phone,
+      minThreatLevel: parseThreatLevel(minThreatLevel),
+      alertTypes: parseAlertTypes(alertTypes),
+    })
+
+    response.status(201).json(state)
+  } catch (error) {
+    response.status(400).json({
+      message: error instanceof Error ? error.message : 'Unable to save this SMS subscriber.',
+    })
+  }
+})
+
+app.post('/api/sms/subscribers/:id/unsubscribe', async (request, response) => {
+  try {
+    const state = await unsubscribeFromSms(request.params.id)
+    response.json(state)
+  } catch (error) {
+    response.status(404).json({
+      message: error instanceof Error ? error.message : 'Subscriber not found.',
+    })
+  }
+})
+
+app.post('/api/sms/dispatch', async (request, response) => {
+  try {
+    const scenario = parseScenario(request.body?.scenario)
+    const force = typeof request.body?.force === 'boolean' ? request.body.force : scenario !== 'live'
+    const result = await dispatchSmsForScenario(scenario, force)
+    response.json(result)
+  } catch (error) {
+    response.status(500).json({
+      message: 'Unable to dispatch BayGuard SMS alerts right now.',
       details: error instanceof Error ? error.message : 'Unknown server error',
     })
   }
@@ -209,6 +305,43 @@ if (existsSync(distDir)) {
   })
 }
 
+let smsEvaluationInFlight = false
+
+async function evaluateSmsScheduler(): Promise<void> {
+  if (smsEvaluationInFlight) {
+    return
+  }
+
+  smsEvaluationInFlight = true
+
+  try {
+    const result = await runAutomaticSmsEvaluation()
+    if (result && result.outcome !== 'skipped') {
+      console.log(`[sms] ${result.reason}`)
+    }
+  } catch (error) {
+    console.error('[sms] automatic evaluation failed', error)
+  } finally {
+    smsEvaluationInFlight = false
+  }
+}
+
 app.listen(port, () => {
   console.log(`BayGuard API listening on http://localhost:${port}`)
+
+  const smsRuntime = getSmsRuntimeConfig()
+  if (smsRuntime.schedulerEnabled) {
+    const intervalMs = smsRuntime.evaluationIntervalMinutes * 60 * 1000
+    console.log(
+      `[sms] evaluator active in ${smsRuntime.sendMode} mode every ${smsRuntime.evaluationIntervalMinutes} minute(s)`,
+    )
+    setTimeout(() => {
+      void evaluateSmsScheduler()
+    }, 4000)
+    setInterval(() => {
+      void evaluateSmsScheduler()
+    }, intervalMs)
+  } else {
+    console.log('[sms] evaluator disabled')
+  }
 })

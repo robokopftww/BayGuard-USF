@@ -14,6 +14,7 @@ When no Gemini key is present, the app falls back to a deterministic judge so th
 - `NOAA CO-OPS API` for coastal water levels and tide predictions around Tampa Bay.
 - `NHC XML feeds` for Atlantic tropical outlook and active advisory monitoring.
 - `Google Maps JavaScript API` for the operations map and incident overlays.
+- Optional `Twilio` integration for resident SMS alerts.
 - `React + Vite` for the frontend.
 - `Express + TypeScript` for the orchestration backend.
 
@@ -37,10 +38,13 @@ cp .env.example .env
 GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-2.5-flash
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key_here
+SMS_PROVIDER=mock
+SMS_SENDING_ENABLED=0
 ```
 
 The dashboard will still run without `GEMINI_API_KEY`, but the final judge will stay in deterministic fallback mode.
 The Tampa map will show a setup message until `VITE_GOOGLE_MAPS_API_KEY` is present.
+SMS runs in local dry-run mode until you explicitly switch `SMS_PROVIDER=twilio` and set `SMS_SENDING_ENABLED=1`.
 
 4. Run the app in development:
 
@@ -50,6 +54,12 @@ npm run dev
 
 - Frontend: `http://localhost:5173`
 - API: `http://localhost:8787`
+
+5. Open the SMS control room at `http://localhost:5173/sms`
+
+- Add subscribers from the UI.
+- Run `Flood drill`, `Hurricane drill`, or `Compound event` dispatches.
+- In mock mode, sends are logged locally in `data/sms-store.json`.
 
 ## Production-style run
 
@@ -76,6 +86,38 @@ Use the scenario selector in the top area of the UI. The backend also accepts:
 /api/intel?scenario=hurricane
 /api/intel?scenario=compound
 ```
+
+## SMS alerts
+
+BayGuard now includes an SMS roster and dispatch workflow:
+
+- `/sms` manages subscribers and shows recent sends.
+- A background evaluator checks live conditions every few minutes.
+- Live sends only go out when the threat posture crosses the configured threshold or a major official alert appears.
+- Repeats are deduped with a cooldown window.
+
+### Safe default
+
+These defaults keep texting safe in local development:
+
+```bash
+SMS_PROVIDER=mock
+SMS_SENDING_ENABLED=0
+```
+
+### Twilio live sending
+
+To enable real texts, set:
+
+```bash
+SMS_PROVIDER=twilio
+SMS_SENDING_ENABLED=1
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_MESSAGING_SERVICE_SID=...
+```
+
+You can use `TWILIO_FROM_NUMBER` instead of `TWILIO_MESSAGING_SERVICE_SID` if needed.
 
 ## Architecture
 
