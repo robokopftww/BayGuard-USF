@@ -258,6 +258,7 @@ function OverviewPage({
 }: OverviewPageProps) {
   const topActions = snapshot?.recommendations.slice(0, 3) ?? fallbackActions
   const priorityZones = [...zones].sort((left, right) => right.score - left.score).slice(0, 3)
+  const leadZone = priorityZones[0]
   const officialAlertCount = weather?.alerts.length ?? 0
   const activeWatchCount = zones.filter((zone) => zone.threatLevel !== 'low').length
   const currentThreat = overview?.threatLevel ?? 'low'
@@ -286,6 +287,7 @@ function OverviewPage({
       body: waterfrontGuidance(currentThreat, coastal?.maxPredictedFtNext24h),
     },
   ] as const
+  const overviewConfidence = overview ? `${Math.round(overview.confidence * 100)}%` : '--'
 
   return (
     <div className="page-grid page-grid-overview">
@@ -307,12 +309,76 @@ function OverviewPage({
                 170,
               )}
             </p>
+
+            <div className="hero-summary-grid">
+              <article className="hero-summary-card">
+                <span>Most exposed area</span>
+                <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
+                <small>{leadZone?.neighborhood ?? 'Citywide monitoring is active.'}</small>
+              </article>
+              <article className="hero-summary-card">
+                <span>Official alerts</span>
+                <strong>{officialAlertCount}</strong>
+                <small>{officialAlertCount ? 'Weather Service notices are active now.' : 'No official notices are active right now.'}</small>
+              </article>
+              <article className="hero-summary-card">
+                <span>BayGuard confidence</span>
+                <strong>{overviewConfidence}</strong>
+                <small>{overview?.monitoringMode ?? 'Citywide posture is being monitored live.'}</small>
+              </article>
+            </div>
+
+            <div className="hero-actions-grid">
+              <QuickActionCard
+                to="/map"
+                title="Map room"
+                caption="See which neighborhoods and bayfront zones need attention."
+                icon={<Map size={18} />}
+              />
+              <QuickActionCard
+                to="/alerts"
+                title="Alerts desk"
+                caption="Review active incidents, official notices, and response language."
+                icon={<BellRing size={18} />}
+              />
+              <QuickActionCard
+                to="/sms"
+                title="SMS alerts"
+                caption="Manage subscribers and test live or drill dispatches."
+                icon={<Smartphone size={18} />}
+              />
+            </div>
           </div>
 
-          <aside className="overview-side-card">
-            <p className="page-kicker">Right now</p>
-            <h4>{monitoringLabel}</h4>
-            <p>{threatNarrative}</p>
+          <aside className="overview-command-card">
+            <div className="overview-command-intro">
+              <p className="page-kicker">At a glance</p>
+              <h4>{monitoringLabel}</h4>
+              <p>{threatNarrative}</p>
+            </div>
+
+            <div className="snapshot-stat-grid snapshot-stat-grid-tight">
+              <article className="snapshot-stat-card">
+                <span>Threat level</span>
+                <strong>{formatThreat(currentThreat)}</strong>
+                <small>Current citywide posture.</small>
+              </article>
+              <article className="snapshot-stat-card">
+                <span>Areas watched</span>
+                <strong>{activeWatchCount}</strong>
+                <small>Neighborhoods with elevated monitoring.</small>
+              </article>
+              <article className="snapshot-stat-card">
+                <span>Peak tide</span>
+                <strong>{coastal ? `${coastal.maxPredictedFtNext24h.toFixed(2)} ft` : '--'}</strong>
+                <small>Highest predicted coastal level in the next 24 hours.</small>
+              </article>
+              <article className="snapshot-stat-card">
+                <span>Peak gust</span>
+                <strong>{weather ? `${weather.maxWindGustMphNext12h.toFixed(1)} mph` : '--'}</strong>
+                <small>Strongest forecast wind in the next 12 hours.</small>
+              </article>
+            </div>
 
             <div className="overview-side-list">
               <div className="overview-side-item">
@@ -321,47 +387,14 @@ function OverviewPage({
               </div>
               <div className="overview-side-item">
                 <strong>{formatCount(incidents.length, 'incident card')}</strong>
-                <span>BayGuard incidents that may need attention.</span>
+                <span>Live BayGuard incidents currently visible in the alert desk.</span>
               </div>
               <div className="overview-side-item">
-                <strong>{formatCount(activeWatchCount, 'area under watch')}</strong>
-                <span>Neighborhoods BayGuard is keeping an eye on.</span>
+                <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
+                <span>{leadZone?.reason ?? 'No standout hotspot at the moment.'}</span>
               </div>
             </div>
           </aside>
-        </div>
-
-        <div className="hero-actions-grid">
-          <QuickActionCard
-            to="/map"
-            title="Map room"
-            caption="See which neighborhoods and bayfront zones need attention."
-            icon={<Map size={18} />}
-          />
-          <QuickActionCard
-            to="/alerts"
-            title="Alerts desk"
-            caption="Review active incidents, official notices, and response language."
-            icon={<BellRing size={18} />}
-          />
-          <QuickActionCard
-            to="/sms"
-            title="SMS alerts"
-            caption="Manage subscribers and test live or drill dispatches."
-            icon={<Smartphone size={18} />}
-          />
-        </div>
-
-        <div className="guidance-grid">
-          {guidanceCards.map((card) => (
-            <article key={card.title} className={`guidance-card guidance-card-${card.tone}`}>
-              <div className="guidance-icon">{card.icon}</div>
-              <div>
-                <span className="guidance-label">{card.title}</span>
-                <p>{card.body}</p>
-              </div>
-            </article>
-          ))}
         </div>
 
         <div className="metrics-grid">
@@ -398,56 +431,19 @@ function OverviewPage({
         </div>
       </section>
 
-      <section className="panel-card panel-card-soft">
-        <div className="panel-head">
-          <div>
-            <p className="page-kicker">City snapshot</p>
-            <h3>What Tampa residents should know first</h3>
-          </div>
-          <Compass size={18} />
-        </div>
-
-        <div className="snapshot-stat-grid">
-          <article className="snapshot-stat-card">
-            <span>Threat level</span>
-            <strong>{formatThreat(currentThreat)}</strong>
-            <small>{overview?.monitoringMode ?? 'Monitoring citywide conditions'}</small>
-          </article>
-          <article className="snapshot-stat-card">
-            <span>Most exposed area</span>
-            <strong>{priorityZones[0]?.name ?? 'Tampa Bay region'}</strong>
-            <small>{priorityZones[0]?.reason ?? 'No standout hotspot at the moment.'}</small>
-          </article>
-          <article className="snapshot-stat-card">
-            <span>Peak tide window</span>
-            <strong>{coastal ? `${coastal.maxPredictedFtNext24h.toFixed(2)} ft` : '--'}</strong>
-            <small>{coastal ? 'Highest predicted coastal level in the next 24 hours.' : 'Waiting on NOAA coastal guidance.'}</small>
-          </article>
-          <article className="snapshot-stat-card">
-            <span>Rain outlook</span>
-            <strong>{weather ? `${weather.maxPrecipChanceNext12h}% chance` : '--'}</strong>
-            <small>
-              {weather
-                ? `${weather.maxPrecipMmNext12h.toFixed(1)} mm expected at the strongest period.`
-                : 'Waiting on NWS forecast guidance.'}
-            </small>
-          </article>
-        </div>
-      </section>
-
-      <section className="panel-card">
+      <section className="panel-card panel-span-full panel-card-soft">
         <div className="panel-head">
           <div>
             <p className="page-kicker">Neighborhood watch</p>
-            <h3>Places to keep an eye on</h3>
+            <h3>Where attention is building across Tampa</h3>
           </div>
           <Map size={18} />
         </div>
 
         {priorityZones.length ? (
-          <div className="stack-list">
+          <div className="priority-zone-grid">
             {priorityZones.map((zone) => (
-              <article key={zone.id} className="zone-row">
+              <article key={zone.id} className="zone-spotlight">
                 <div className="zone-row-top">
                   <strong>{zone.name}</strong>
                   <span className={`severity-chip ${severityClass(zone.threatLevel)}`}>
@@ -465,6 +461,28 @@ function OverviewPage({
             body="BayGuard has not identified a neighborhood that needs extra attention right now."
           />
         )}
+      </section>
+
+      <section className="panel-card guidance-panel">
+        <div className="panel-head">
+          <div>
+            <p className="page-kicker">Everyday guidance</p>
+            <h3>What people in Tampa should keep in mind</h3>
+          </div>
+          <House size={18} />
+        </div>
+
+        <div className="guidance-grid guidance-grid-stack">
+          {guidanceCards.map((card) => (
+            <article key={card.title} className={`guidance-card guidance-card-${card.tone}`}>
+              <div className="guidance-icon">{card.icon}</div>
+              <div>
+                <span className="guidance-label">{card.title}</span>
+                <p>{card.body}</p>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="panel-card">
@@ -490,20 +508,20 @@ function OverviewPage({
         )}
       </section>
 
-      <section className="panel-card">
+      <section className="panel-card panel-span-full">
         <div className="panel-head">
           <div>
             <p className="page-kicker">Recommended next</p>
-            <h3>What users should do now</h3>
+            <h3>Best next moves if conditions start changing</h3>
           </div>
           <Compass size={18} />
         </div>
 
-        <div className="takeaway-list">
+        <div className="takeaway-list takeaway-list-inline">
           {topActions.map((item, index) => (
             <article key={item} className="takeaway-card">
               <span className="takeaway-index">0{index + 1}</span>
-              <p>{compactText(item, 110)}</p>
+              <p>{compactText(item, 140)}</p>
             </article>
           ))}
         </div>

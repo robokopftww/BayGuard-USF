@@ -28,68 +28,266 @@ const LOCATION = {
 
 const THREAT_LEVELS: ThreatLevel[] = ['low', 'guarded', 'elevated', 'high', 'severe']
 
-const ZONE_TEMPLATES = [
+interface ZoneTemplate {
+  id: string
+  name: string
+  neighborhood: string
+  kind: ZoneRisk['kind']
+  lat: number
+  lon: number
+  floodBias: number
+  weatherBias: number
+  stormBias: number
+  baseRisk: number
+  floodProfile: string
+  weatherProfile: string
+  stormProfile: string
+}
+
+const ZONE_TEMPLATES: ZoneTemplate[] = [
   {
     id: 'downtown',
     name: 'Downtown Tampa Core',
     neighborhood: 'Riverwalk / CBD',
-    kind: 'urban' as const,
+    kind: 'urban',
     lat: 27.9485,
     lon: -82.4604,
     floodBias: 0.45,
     weatherBias: 0.4,
     stormBias: 0.15,
     baseRisk: 0.1,
+    floodProfile: 'dense streets, drainage chokepoints, and riverfront runoff',
+    weatherProfile: 'high foot traffic, street flooding risk, and exposed intersections',
+    stormProfile: 'downtown high-rise wind exposure and core evacuation flow',
+  },
+  {
+    id: 'channelside',
+    name: 'Channelside / Water Street',
+    neighborhood: 'Harborfront',
+    kind: 'coastal',
+    lat: 27.9431,
+    lon: -82.4496,
+    floodBias: 0.62,
+    weatherBias: 0.24,
+    stormBias: 0.14,
+    baseRisk: 0.14,
+    floodProfile: 'waterfront access roads and low-lying blocks near the port approach',
+    weatherProfile: 'slick streets and heavy runoff near event and residential towers',
+    stormProfile: 'bayfront wind exposure and visitor movement near the harbor',
+  },
+  {
+    id: 'ybor',
+    name: 'Ybor City',
+    neighborhood: 'Historic District',
+    kind: 'urban',
+    lat: 27.9608,
+    lon: -82.4362,
+    floodBias: 0.4,
+    weatherBias: 0.42,
+    stormBias: 0.18,
+    baseRisk: 0.09,
+    floodProfile: 'older drainage, brick corridors, and quick street ponding',
+    weatherProfile: 'dense nightlife streets and runoff around older blocks',
+    stormProfile: 'event traffic shifts and wind exposure along open corridors',
   },
   {
     id: 'davis-islands',
     name: 'Davis Islands',
     neighborhood: 'South Tampa',
-    kind: 'coastal' as const,
+    kind: 'coastal',
     lat: 27.9162,
     lon: -82.4544,
     floodBias: 0.65,
     weatherBias: 0.2,
     stormBias: 0.15,
     baseRisk: 0.16,
+    floodProfile: 'bayfront roads, seawall-adjacent blocks, and low-lying island access',
+    weatherProfile: 'localized heavy rain over residential streets and marinas',
+    stormProfile: 'coastal wind exposure and route constraints on and off the islands',
+  },
+  {
+    id: 'hyde-park',
+    name: 'Hyde Park / Bayshore',
+    neighborhood: 'Bayshore Boulevard',
+    kind: 'coastal',
+    lat: 27.9318,
+    lon: -82.4886,
+    floodBias: 0.58,
+    weatherBias: 0.24,
+    stormBias: 0.18,
+    baseRisk: 0.12,
+    floodProfile: 'bayfront lanes, low-lying neighborhood streets, and shoreline runoff',
+    weatherProfile: 'ponding-prone intersections and high-traffic neighborhood routes',
+    stormProfile: 'wind exposure along the waterfront and evacuation-sensitive corridors',
   },
   {
     id: 'port',
     name: 'Port Tampa Gateway',
     neighborhood: 'Old Port / Shipping Channel',
-    kind: 'coastal' as const,
+    kind: 'coastal',
     lat: 27.8578,
     lon: -82.5528,
     floodBias: 0.6,
     weatherBias: 0.2,
     stormBias: 0.2,
     baseRisk: 0.18,
+    floodProfile: 'port access roads, industrial drainage, and shipping-channel surge pressure',
+    weatherProfile: 'heavy rain over freight routes and exposed logistics yards',
+    stormProfile: 'storm routing importance near port operations and shoreline assets',
   },
   {
     id: 'westshore',
     name: 'Westshore Corridor',
     neighborhood: 'Airport / Business District',
-    kind: 'evacuation' as const,
+    kind: 'evacuation',
     lat: 27.9522,
     lon: -82.5307,
     floodBias: 0.35,
     weatherBias: 0.35,
     stormBias: 0.3,
     baseRisk: 0.08,
+    floodProfile: 'arterial roads, parking lots, and airport-adjacent runoff',
+    weatherProfile: 'business-district travel disruption and roadway ponding',
+    stormProfile: 'airport corridor travel reliability and evacuation traffic sensitivity',
+  },
+  {
+    id: 'rocky-point',
+    name: 'Rocky Point',
+    neighborhood: 'Causeway / Bay Hotels',
+    kind: 'coastal',
+    lat: 27.9656,
+    lon: -82.5719,
+    floodBias: 0.63,
+    weatherBias: 0.18,
+    stormBias: 0.19,
+    baseRisk: 0.14,
+    floodProfile: 'causeway access, shoreline parking, and hotel district drainage',
+    weatherProfile: 'travel disruption along the causeway during heavy rain',
+    stormProfile: 'bay-exposed structures and water-adjacent access routes',
+  },
+  {
+    id: 'seminole-heights',
+    name: 'Seminole Heights',
+    neighborhood: 'Central North Tampa',
+    kind: 'urban',
+    lat: 27.9955,
+    lon: -82.4703,
+    floodBias: 0.36,
+    weatherBias: 0.42,
+    stormBias: 0.22,
+    baseRisk: 0.08,
+    floodProfile: 'older drainage paths and neighborhood street ponding',
+    weatherProfile: 'convective downpours over dense local streets and intersections',
+    stormProfile: 'tree-lined streets and localized wind impact pockets',
+  },
+  {
+    id: 'east-tampa',
+    name: 'East Tampa',
+    neighborhood: 'Adamo / 40th Street',
+    kind: 'urban',
+    lat: 27.9652,
+    lon: -82.4147,
+    floodBias: 0.38,
+    weatherBias: 0.4,
+    stormBias: 0.22,
+    baseRisk: 0.07,
+    floodProfile: 'flat urban runoff zones and industrial-adjacent drainage',
+    weatherProfile: 'street flooding and reduced visibility on major connectors',
+    stormProfile: 'wind-sensitive road network and utility exposure',
+  },
+  {
+    id: 'sulphur-springs',
+    name: 'Sulphur Springs',
+    neighborhood: 'Hillsborough River bend',
+    kind: 'river',
+    lat: 28.0116,
+    lon: -82.4565,
+    floodBias: 0.42,
+    weatherBias: 0.33,
+    stormBias: 0.25,
+    baseRisk: 0.09,
+    floodProfile: 'river-adjacent runoff, creek paths, and low-lying residential streets',
+    weatherProfile: 'heavy rain over neighborhoods near the river basin',
+    stormProfile: 'storm runoff and river response overlap during strong systems',
   },
   {
     id: 'university',
     name: 'University Area',
     neighborhood: 'Hillsborough River approaches',
-    kind: 'river' as const,
+    kind: 'river',
     lat: 28.0587,
     lon: -82.4139,
     floodBias: 0.3,
     weatherBias: 0.5,
     stormBias: 0.2,
     baseRisk: 0.05,
+    floodProfile: 'creeks, ponds, and fast-changing campus-adjacent drainage',
+    weatherProfile: 'high rainfall sensitivity across dense residential and campus traffic',
+    stormProfile: 'storm-routing importance for major north Tampa travel corridors',
+  },
+  {
+    id: 'temple-terrace',
+    name: 'Temple Terrace',
+    neighborhood: 'River hills and campus edge',
+    kind: 'river',
+    lat: 28.0364,
+    lon: -82.3896,
+    floodBias: 0.34,
+    weatherBias: 0.42,
+    stormBias: 0.24,
+    baseRisk: 0.06,
+    floodProfile: 'river approaches, neighborhood creeks, and drainage retention areas',
+    weatherProfile: 'downpours over tree-lined residential streets and local connectors',
+    stormProfile: 'wind pockets around open parkways and river-adjacent neighborhoods',
+  },
+  {
+    id: 'town-n-country',
+    name: "Town 'N' Country",
+    neighborhood: 'Northwest Tampa',
+    kind: 'urban',
+    lat: 27.9976,
+    lon: -82.5773,
+    floodBias: 0.37,
+    weatherBias: 0.39,
+    stormBias: 0.24,
+    baseRisk: 0.07,
+    floodProfile: 'broad paved corridors, retention systems, and heavy runoff streets',
+    weatherProfile: 'street flooding risk along busy northwest corridors',
+    stormProfile: 'wind-sensitive power and transport routes toward the bay',
+  },
+  {
+    id: 'new-tampa',
+    name: 'New Tampa',
+    neighborhood: 'Northeast suburban edge',
+    kind: 'river',
+    lat: 28.1375,
+    lon: -82.3528,
+    floodBias: 0.28,
+    weatherBias: 0.48,
+    stormBias: 0.24,
+    baseRisk: 0.05,
+    floodProfile: 'retention ponds and fast runoff into suburban drainage systems',
+    weatherProfile: 'strong thunderstorm exposure over wide suburban roadways',
+    stormProfile: 'wind-driven tree and roadway impacts across the northeast edge',
+  },
+  {
+    id: 'palm-river',
+    name: 'Palm River / Clair-Mel',
+    neighborhood: 'East bay approach',
+    kind: 'coastal',
+    lat: 27.9371,
+    lon: -82.3867,
+    floodBias: 0.56,
+    weatherBias: 0.24,
+    stormBias: 0.2,
+    baseRisk: 0.11,
+    floodProfile: 'low-lying east-bay drainage and neighborhood water back-up',
+    weatherProfile: 'runoff-heavy streets and visibility loss during heavy rain',
+    stormProfile: 'bay-adjacent routing and wind exposure across east approaches',
   },
 ]
+
+const ZONE_TEMPLATE_BY_ID = new Map(ZONE_TEMPLATES.map((zone) => [zone.id, zone]))
 
 interface JudgeVerdict {
   headline: string
@@ -567,53 +765,180 @@ async function maybeRunGeminiJudge(
   }
 }
 
-function buildIncidents(weather: AgentIntel, flood: AgentIntel, storm: AgentIntel): Incident[] {
-  const incidents: Incident[] = []
+function zoneTemplateFor(zoneId: string): ZoneTemplate {
+  return ZONE_TEMPLATE_BY_ID.get(zoneId) ?? ZONE_TEMPLATES[0]
+}
 
-  if (flood.score >= 0.45) {
+function dominantZoneDriver(zone: ZoneTemplate, flood: AgentIntel, weather: AgentIntel, storm: AgentIntel) {
+  const contributions = [
+    {
+      key: 'flood' as const,
+      score: zone.baseRisk + flood.score * zone.floodBias,
+      label: zone.floodProfile,
+    },
+    {
+      key: 'weather' as const,
+      score: weather.score * zone.weatherBias,
+      label: zone.weatherProfile,
+    },
+    {
+      key: 'storm' as const,
+      score: storm.score * zone.stormBias,
+      label: zone.stormProfile,
+    },
+  ].sort((left, right) => right.score - left.score)
+
+  return contributions[0]
+}
+
+function localizedZoneBoost(
+  zone: ZoneTemplate,
+  weatherSignal: WeatherSignal,
+  coastalSignal: CoastalSignal,
+  tropicalSignal: TropicalSignal,
+): number {
+  const floodAlertCount = weatherSignal.alerts.filter((alert) => /(flood|storm surge|coastal)/i.test(alert.event)).length
+  const stormAlertCount = weatherSignal.alerts.filter((alert) => /(hurricane|tropical storm|storm surge)/i.test(alert.event)).length
+  const heavyRainBoost =
+    zone.kind === 'urban' || zone.kind === 'river'
+      ? thresholdScore(weatherSignal.maxPrecipMmNext12h, [
+          [10, 0.03],
+          [25, 0.06],
+          [50, 0.1],
+        ])
+      : 0
+  const coastalBoost =
+    zone.kind === 'coastal'
+      ? thresholdScore(coastalSignal.maxPredictedFtNext24h, [
+          [2.1, 0.03],
+          [2.6, 0.06],
+          [3.2, 0.11],
+        ])
+      : 0
+  const evacuationBoost =
+    zone.kind === 'evacuation'
+      ? thresholdScore(weatherSignal.maxWindGustMphNext12h, [
+          [30, 0.04],
+          [45, 0.08],
+          [70, 0.14],
+        ])
+      : 0
+  const stormTrackBoost =
+    tropicalSignal.activeSystems.length > 0
+      ? zone.kind === 'coastal' || zone.kind === 'evacuation'
+        ? 0.08
+        : 0.04
+      : 0
+
+  return clamp(
+    heavyRainBoost +
+      coastalBoost +
+      evacuationBoost +
+      stormTrackBoost +
+      floodAlertCount * (zone.kind === 'coastal' ? 0.03 : 0.015) +
+      stormAlertCount * (zone.kind === 'evacuation' || zone.kind === 'coastal' ? 0.03 : 0.01),
+    0,
+    0.24,
+  )
+}
+
+function zoneReason(
+  zone: ZoneTemplate,
+  dominant: ReturnType<typeof dominantZoneDriver>,
+  weatherSignal: WeatherSignal,
+  coastalSignal: CoastalSignal,
+  tropicalSignal: TropicalSignal,
+): string {
+  switch (dominant.key) {
+    case 'flood':
+      return `${zone.name} stands out for ${dominant.label}; coastal guidance peaks near ${coastalSignal.maxPredictedFtNext24h.toFixed(2)} ft and rain guidance reaches ${weatherSignal.maxPrecipMmNext12h.toFixed(1)} mm.`
+    case 'storm':
+      return tropicalSignal.activeSystems.length > 0
+        ? `${zone.name} is elevated by ${dominant.label} while ${tropicalSignal.activeSystems.length} active tropical advisory item${tropicalSignal.activeSystems.length > 1 ? 's' : ''} remain on the Atlantic desk.`
+        : `${zone.name} is elevated by ${dominant.label} with gust guidance up to ${weatherSignal.maxWindGustMphNext12h.toFixed(1)} mph.`
+    default:
+      return `${zone.name} is elevated by ${dominant.label} with rainfall guidance reaching ${weatherSignal.maxPrecipMmNext12h.toFixed(1)} mm and ${weatherSignal.maxPrecipChanceNext12h}% precipitation odds.`
+  }
+}
+
+function pickIncidentZone(zones: ZoneRisk[], driver: 'flood' | 'weather' | 'storm'): ZoneRisk | undefined {
+  return [...zones]
+    .sort((left, right) => {
+      const leftTemplate = zoneTemplateFor(left.id)
+      const rightTemplate = zoneTemplateFor(right.id)
+      const leftBias =
+        driver === 'flood'
+          ? leftTemplate.floodBias
+          : driver === 'weather'
+            ? leftTemplate.weatherBias
+            : leftTemplate.stormBias
+      const rightBias =
+        driver === 'flood'
+          ? rightTemplate.floodBias
+          : driver === 'weather'
+            ? rightTemplate.weatherBias
+            : rightTemplate.stormBias
+
+      return right.score * (rightBias + 0.35) - left.score * (leftBias + 0.35)
+    })
+    .at(0)
+}
+
+function buildIncidents(
+  zones: ZoneRisk[],
+  weather: AgentIntel,
+  flood: AgentIntel,
+  storm: AgentIntel,
+): Incident[] {
+  const incidents: Incident[] = []
+  const floodZone = pickIncidentZone(zones, 'flood')
+  const weatherZone = pickIncidentZone(zones, 'weather')
+  const stormZone = pickIncidentZone(zones, 'storm')
+
+  if (flood.score >= 0.45 && floodZone) {
     incidents.push({
       id: 'flood-watch',
-      title: flood.headline,
+      title: `${floodZone.name}: ${flood.headline}`,
       category: 'flood',
       severity: scoreToThreat(flood.score),
       status: flood.score >= 0.68 ? 'warning' : 'active',
-      lat: 27.9162,
-      lon: -82.4544,
-      description: flood.summary,
+      lat: floodZone.lat,
+      lon: floodZone.lon,
+      description: `${flood.summary} Focus area: ${floodZone.neighborhood}.`,
       recommendation:
-        flood.recommendedActions[0] ?? 'Inspect low-lying streets and stormwater chokepoints.',
+        `${flood.recommendedActions[0] ?? 'Inspect low-lying streets and stormwater chokepoints.'} Start with ${floodZone.name}.`,
       source: 'NOAA CO-OPS',
     })
   }
 
-  if (weather.score >= 0.45) {
+  if (weather.score >= 0.45 && weatherZone) {
     incidents.push({
       id: 'weather-watch',
-      title: weather.headline,
+      title: `${weatherZone.name}: ${weather.headline}`,
       category: 'weather',
       severity: scoreToThreat(weather.score),
       status: weather.score >= 0.68 ? 'warning' : 'active',
-      lat: 27.9485,
-      lon: -82.4604,
-      description: weather.summary,
+      lat: weatherZone.lat,
+      lon: weatherZone.lon,
+      description: `${weather.summary} Watch ${weatherZone.neighborhood} first.`,
       recommendation:
-        weather.recommendedActions[0] ?? 'Prepare traffic and field teams for sharp weather changes.',
+        `${weather.recommendedActions[0] ?? 'Prepare traffic and field teams for sharp weather changes.'} Prioritize ${weatherZone.name}.`,
       source: 'NWS TBW',
     })
   }
 
-  if (storm.score >= 0.45) {
+  if (storm.score >= 0.45 && stormZone) {
     incidents.push({
       id: 'storm-watch',
-      title: storm.headline,
+      title: `${stormZone.name}: ${storm.headline}`,
       category: 'storm',
       severity: scoreToThreat(storm.score),
       status: storm.score >= 0.68 ? 'warning' : 'active',
-      lat: 27.8578,
-      lon: -82.5528,
-      description: storm.summary,
+      lat: stormZone.lat,
+      lon: stormZone.lon,
+      description: `${storm.summary} Priority zone: ${stormZone.neighborhood}.`,
       recommendation:
-        storm.recommendedActions[0] ?? 'Brief leadership on tropical positioning and confidence bands.',
+        `${storm.recommendedActions[0] ?? 'Brief leadership on tropical positioning and confidence bands.'} Use ${stormZone.name} as the lead watch area.`,
       source: 'NHC Atlantic',
     })
   }
@@ -621,21 +946,24 @@ function buildIncidents(weather: AgentIntel, flood: AgentIntel, storm: AgentInte
   return incidents
 }
 
-function buildZones(weather: AgentIntel, flood: AgentIntel, storm: AgentIntel): ZoneRisk[] {
+function buildZones(
+  weather: AgentIntel,
+  flood: AgentIntel,
+  storm: AgentIntel,
+  weatherSignal: WeatherSignal,
+  coastalSignal: CoastalSignal,
+  tropicalSignal: TropicalSignal,
+): ZoneRisk[] {
   return ZONE_TEMPLATES.map((zone) => {
+    const localizedBoost = localizedZoneBoost(zone, weatherSignal, coastalSignal, tropicalSignal)
     const score = clamp(
       zone.baseRisk +
         flood.score * zone.floodBias +
         weather.score * zone.weatherBias +
-        storm.score * zone.stormBias,
+        storm.score * zone.stormBias +
+        localizedBoost,
     )
-
-    const dominant =
-      zone.floodBias >= zone.weatherBias && zone.floodBias >= zone.stormBias
-        ? 'coastal and drainage exposure'
-        : zone.weatherBias >= zone.stormBias
-          ? 'rainfall and street runoff sensitivity'
-          : 'storm routing importance'
+    const dominant = dominantZoneDriver(zone, flood, weather, storm)
 
     return {
       id: zone.id,
@@ -646,7 +974,7 @@ function buildZones(weather: AgentIntel, flood: AgentIntel, storm: AgentIntel): 
       lon: zone.lon,
       score: round(score),
       threatLevel: scoreToThreat(score),
-      reason: `${zone.name} carries elevated ${dominant} compared with the citywide baseline.`,
+      reason: zoneReason(zone, dominant, weatherSignal, coastalSignal, tropicalSignal),
     }
   })
 }
@@ -905,6 +1233,15 @@ export async function createIntelSnapshot(scenario: SimulationScenario = 'live')
   const mode = geminiVerdict ? 'gemini' : 'fallback'
   const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash'
   const judgeAgent = buildJudgeAgent(finalVerdict, mode, mode === 'gemini' ? model : undefined)
+  const zones = buildZones(
+    weatherAgent,
+    floodAgent,
+    stormAgent,
+    weatherSignal,
+    coastalSignal,
+    tropicalSignal,
+  )
+  const incidents = buildIncidents(zones, weatherAgent, floodAgent, stormAgent)
 
   return {
     generatedAt: new Date().toISOString(),
@@ -921,8 +1258,8 @@ export async function createIntelSnapshot(scenario: SimulationScenario = 'live')
     },
     overview: buildOverview(finalVerdict, mode),
     agents: [weatherAgent, floodAgent, stormAgent, judgeAgent],
-    incidents: buildIncidents(weatherAgent, floodAgent, stormAgent),
-    zones: buildZones(weatherAgent, floodAgent, stormAgent),
+    incidents,
+    zones,
     recommendations: finalVerdict.recommendations,
     sources: [
       {
