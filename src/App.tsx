@@ -7,51 +7,105 @@ import {
   Workflow,
 } from 'lucide-react'
 import { startTransition, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 
 import { IntelMap } from './components/IntelMap'
+import MapPage from './pages/Map'
+import ReportsPage from './pages/Reports'
+import EvacuatePage from './pages/Evacuate'
 import './App.css'
+import './pages/pages.css'
 import type { IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types.ts'
 
-function App() {
+/* ─────────────────────────────────────────────
+   Navbar
+───────────────────────────────────────────── */
+
+function Navbar() {
+  return (
+    <nav className="top-nav">
+      <NavLink to="/" className="nav-logo">
+        <ShieldAlert size={20} />
+        BayGuard
+      </NavLink>
+
+      <div className="nav-links">
+        <NavLink
+          to="/map"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+        >
+          Map
+        </NavLink>
+        <NavLink
+          to="/reports"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+        >
+          Report Issue
+        </NavLink>
+        <NavLink
+          to="/evacuate"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+        >
+          Evacuate
+        </NavLink>
+      </div>
+    </nav>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Dashboard (original app content)
+───────────────────────────────────────────── */
+
+function Dashboard() {
   const [snapshot, setSnapshot] = useState<IntelSnapshot | null>(null)
   const [scenario, setScenario] = useState<SimulationScenario>('live')
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchIntel = useCallback(async (forceRefresh = false, selectedScenario: SimulationScenario) => {
-    try {
-      if (forceRefresh) {
-        setIsRefreshing(true)
-      }
+  const fetchIntel = useCallback(
+    async (forceRefresh = false, selectedScenario: SimulationScenario) => {
+      try {
+        if (forceRefresh) {
+          setIsRefreshing(true)
+        }
 
-      setError(null)
-      const params = new URLSearchParams()
-      if (forceRefresh) {
-        params.set('refresh', '1')
-      }
-      if (selectedScenario !== 'live') {
-        params.set('scenario', selectedScenario)
-      }
+        setError(null)
+        const params = new URLSearchParams()
+        if (forceRefresh) {
+          params.set('refresh', '1')
+        }
+        if (selectedScenario !== 'live') {
+          params.set('scenario', selectedScenario)
+        }
 
-      const response = await fetch(`/api/intel${params.size ? `?${params.toString()}` : ''}`)
-      if (!response.ok) {
-        throw new Error('The BayGuard backend could not return a live intelligence snapshot.')
-      }
+        const response = await fetch(
+          `/api/intel${params.size ? `?${params.toString()}` : ''}`,
+        )
+        if (!response.ok) {
+          throw new Error(
+            'The BayGuard backend could not return a live intelligence snapshot.',
+          )
+        }
 
-      const data = (await response.json()) as IntelSnapshot
-      startTransition(() => {
-        setSnapshot(data)
-      })
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error ? caughtError.message : 'Unable to reach the BayGuard backend.',
-      )
-    } finally {
-      setIsLoading(false)
-      setIsRefreshing(false)
-    }
-  }, [])
+        const data = (await response.json()) as IntelSnapshot
+        startTransition(() => {
+          setSnapshot(data)
+        })
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : 'Unable to reach the BayGuard backend.',
+        )
+      } finally {
+        setIsLoading(false)
+        setIsRefreshing(false)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     setIsLoading(true)
@@ -81,9 +135,10 @@ function App() {
           </div>
           <h1>Multi-agent disaster alerts for flood, rain, and hurricane risk.</h1>
           <p>
-            A Tampa operations dashboard that fuses live NWS, NOAA, and NHC feeds with a Google
-            Maps operations layer, then routes them through weather, flood, storm, and final-judge
-            agents. Gemini can take the final orchestration role whenever an API key is configured.
+            A Tampa operations dashboard that fuses live NWS, NOAA, and NHC feeds with a
+            Google Maps operations layer, then routes them through weather, flood, storm,
+            and final-judge agents. Gemini can take the final orchestration role whenever
+            an API key is configured.
           </p>
 
           <div className="hero-actions">
@@ -106,7 +161,9 @@ function App() {
               <select
                 id="scenario-select"
                 value={scenario}
-                onChange={(event) => setScenario(event.target.value as SimulationScenario)}
+                onChange={(event) =>
+                  setScenario(event.target.value as SimulationScenario)
+                }
               >
                 {scenarioOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -130,7 +187,10 @@ function App() {
         <div className="hero-summary card">
           <p className="card-kicker">Operations posture</p>
           <h2>{overview?.headline ?? 'Preparing Tampa watch floor'}</h2>
-          <p>{overview?.summary ?? 'Loading signal adapters and initializing the agent council.'}</p>
+          <p>
+            {overview?.summary ??
+              'Loading signal adapters and initializing the agent council.'}
+          </p>
           {snapshot?.simulation.isSimulated ? (
             <div className="simulation-note">
               <strong>{snapshot.simulation.label}</strong>
@@ -166,19 +226,27 @@ function App() {
           icon={<Waves size={18} />}
           label="Peak tide in 24h"
           value={coastal ? `${coastal.maxPredictedFtNext24h.toFixed(2)} ft` : '--'}
-          detail={coastal ? `${coastal.stations.length} NOAA coastal stations` : 'Waiting for NOAA'}
+          detail={
+            coastal ? `${coastal.stations.length} NOAA coastal stations` : 'Waiting for NOAA'
+          }
         />
         <MetricCard
           icon={<Wind size={18} />}
           label="Peak wind gust"
           value={weather ? `${weather.maxWindGustMphNext12h.toFixed(1)} mph` : '--'}
-          detail={weather ? `NWS ${weather.office} next 12 hours` : 'Waiting for NWS'}
+          detail={
+            weather ? `NWS ${weather.office} next 12 hours` : 'Waiting for NWS'
+          }
         />
         <MetricCard
           icon={<Siren size={18} />}
           label="Rain chance"
           value={weather ? `${weather.maxPrecipChanceNext12h}%` : '--'}
-          detail={weather ? `${weather.maxPrecipMmNext12h.toFixed(1)} mm max QPF window` : 'No forecast yet'}
+          detail={
+            weather
+              ? `${weather.maxPrecipMmNext12h.toFixed(1)} mm max QPF window`
+              : 'No forecast yet'
+          }
         />
         <MetricCard
           icon={<ShieldAlert size={18} />}
@@ -257,7 +325,9 @@ function App() {
                       <h3>{agent.name}</h3>
                       <p>{agent.headline}</p>
                     </div>
-                    <span className={`status-pill status-${agent.status}`}>{agent.status}</span>
+                    <span className={`status-pill status-${agent.status}`}>
+                      {agent.status}
+                    </span>
                   </div>
                   <p className="agent-role">{agent.role}</p>
                   <p className="agent-summary">{agent.summary}</p>
@@ -278,11 +348,12 @@ function App() {
             <p className="card-kicker">Recommended moves</p>
             <h2>Operational guidance</h2>
             <ul className="action-list">
-              {(snapshot?.recommendations.length ? snapshot.recommendations : fallbackActions).map(
-                (item) => (
-                  <li key={item}>{item}</li>
-                ),
-              )}
+              {(snapshot?.recommendations.length
+                ? snapshot.recommendations
+                : fallbackActions
+              ).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
             </ul>
           </section>
         </aside>
@@ -293,7 +364,9 @@ function App() {
           <div className="section-head">
             <div>
               <p className="card-kicker">Incident queue</p>
-              <h2>{snapshot?.incidents.length ? 'Active intelligence' : 'No active incidents'}</h2>
+              <h2>
+                {snapshot?.incidents.length ? 'Active intelligence' : 'No active incidents'}
+              </h2>
             </div>
           </div>
 
@@ -316,8 +389,8 @@ function App() {
             </div>
           ) : (
             <p className="empty-state">
-              Tampa is quiet right now. The system is still watching coastal levels, rainfall, and
-              Atlantic outlook feeds for the next shift.
+              Tampa is quiet right now. The system is still watching coastal levels,
+              rainfall, and Atlantic outlook feeds for the next shift.
             </p>
           )}
         </section>
@@ -343,12 +416,24 @@ function App() {
 
         <section className="card">
           <p className="card-kicker">Source adapters</p>
-          <h2>{snapshot?.simulation.isSimulated ? 'Simulation-adjusted feeds' : 'Live data feeds'}</h2>
+          <h2>
+            {snapshot?.simulation.isSimulated
+              ? 'Simulation-adjusted feeds'
+              : 'Live data feeds'}
+          </h2>
           <div className="sources-list">
             {snapshot?.sources.map((source) => (
-              <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="source-card">
+              <a
+                key={source.url}
+                href={source.url}
+                target="_blank"
+                rel="noreferrer"
+                className="source-card"
+              >
                 <strong>{source.name}</strong>
-                <span>{source.updatedAt ? formatTimestamp(source.updatedAt) : 'Live feed'}</span>
+                <span>
+                  {source.updatedAt ? formatTimestamp(source.updatedAt) : 'Live feed'}
+                </span>
               </a>
             ))}
           </div>
@@ -365,9 +450,9 @@ function App() {
             <span>Final judge</span>
           </div>
           <p>
-            The backend ingests NWS forecasts and alerts, NOAA water levels, and NHC outlooks. The
-            specialist bots score their domain, then the judge resolves a single Tampa posture for
-            the dashboard and alert queue.
+            The backend ingests NWS forecasts and alerts, NOAA water levels, and NHC
+            outlooks. The specialist bots score their domain, then the judge resolves a
+            single Tampa posture for the dashboard and alert queue.
           </p>
           <p className="small-note">
             {snapshot?.overview.monitoringMode ??
@@ -380,6 +465,28 @@ function App() {
     </div>
   )
 }
+
+/* ─────────────────────────────────────────────
+   Root App with Router
+───────────────────────────────────────────── */
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/map" element={<MapPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/evacuate" element={<EvacuatePage />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Shared sub-components & helpers
+───────────────────────────────────────────── */
 
 interface MetricCardProps {
   icon: ReactNode
