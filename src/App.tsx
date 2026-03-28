@@ -12,13 +12,7 @@ import {
   Wind,
   Workflow,
 } from 'lucide-react'
-import {
-  NavLink,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-} from 'react-router-dom'
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { startTransition, useCallback, useEffect, useState, type ReactNode } from 'react'
 
 import { IntelMap } from './components/IntelMap'
@@ -198,7 +192,7 @@ function App() {
           <Route
             path="/"
             element={
-            <OverviewPage
+              <OverviewPage
                 coastal={coastal}
                 incidents={incidents}
                 overview={overview}
