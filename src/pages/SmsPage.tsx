@@ -136,9 +136,29 @@ function SmsPage({ activeScenario }: SmsPageProps) {
     setNotice(null)
 
     try {
-      const response = await fetch(`/api/sms/subscribers/${subscriberId}/unsubscribe`, {
+      const response = await fetch('/api/sms/unsubscribe', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: subscriberId }),
       })
+      
+      if (response.status === 404) {
+        const fallbackResponse = await fetch(`/api/sms/subscribers/${subscriberId}/unsubscribe`, {
+          method: 'POST',
+        })
+
+        const fallbackPayload = await fallbackResponse.json()
+        if (!fallbackResponse.ok) {
+          throw new Error(fallbackPayload.message ?? 'Unable to unsubscribe this phone number.')
+        }
+
+        setCenterState(fallbackPayload as SmsCenterState)
+        setNotice({
+          tone: 'success',
+          message: 'Subscriber removed from active BayGuard SMS sends.',
+        })
+        return
+      }
 
       const payload = await response.json()
       if (!response.ok) {
