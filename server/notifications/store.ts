@@ -50,6 +50,7 @@ const __dirname = path.dirname(__filename)
 const storeFilePath = path.resolve(__dirname, '../../data/sms-store.json')
 
 let storeQueue = Promise.resolve()
+let memoryStore = createEmptyStore()
 
 function createEmptyStore(): NotificationStoreData {
   return {
@@ -61,6 +62,10 @@ function createEmptyStore(): NotificationStoreData {
 
 async function ensureStoreDirectory(): Promise<void> {
   await mkdir(path.dirname(storeFilePath), { recursive: true })
+}
+
+function shouldUseMemoryStore(): boolean {
+  return process.env.BAYGUARD_STORE_MODE === 'memory' || process.env.VERCEL === '1'
 }
 
 export function normalizeAlertTypes(alertTypes: SmsAlertType[]): SmsAlertType[] {
@@ -95,6 +100,10 @@ export function maskPhoneNumber(phone: string): string {
 }
 
 async function readStoreFile(): Promise<NotificationStoreData> {
+  if (shouldUseMemoryStore()) {
+    return structuredClone(memoryStore)
+  }
+
   try {
     await ensureStoreDirectory()
     const raw = await readFile(storeFilePath, 'utf8')
@@ -115,6 +124,11 @@ async function readStoreFile(): Promise<NotificationStoreData> {
 }
 
 async function writeStoreFile(store: NotificationStoreData): Promise<void> {
+  if (shouldUseMemoryStore()) {
+    memoryStore = structuredClone(store)
+    return
+  }
+
   await ensureStoreDirectory()
   await writeFile(storeFilePath, JSON.stringify(store, null, 2))
 }
