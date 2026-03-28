@@ -1,5 +1,5 @@
-import { verifyPayload } from '../server/api.ts'
-import { errorResponse, jsonResponse, readJsonBody } from './_utils.ts'
+import { verifyPayload } from '../server/api'
+import { errorResponse, jsonResponse, readJsonBody } from './_utils'
 
 export async function POST(request: Request) {
   try {

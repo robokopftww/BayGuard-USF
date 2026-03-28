@@ -15,7 +15,7 @@ import type {
   SmsCenterState,
   SmsDispatchResult,
   ThreatLevel,
-} from '../../shared/types.ts'
+} from '../../shared/types'
 
 interface SmsPageProps {
   activeScenario: SimulationScenario

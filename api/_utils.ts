@@ -1,4 +1,4 @@
-import { ApiError } from '../server/api.ts'
+import { ApiError } from '../server/api'
 
 export async function readJsonBody(request: Request): Promise<Record<string, unknown>> {
   try {

@@ -1,7 +1,7 @@
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 import { useEffect, useRef, useState } from 'react'
 
-import type { Incident, ZoneRisk } from '../../shared/types.ts'
+import type { Incident, ZoneRisk } from '../../shared/types'
 
 interface IntelMapProps {
   center: [number, number]

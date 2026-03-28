@@ -1,20 +1,20 @@
 import { GoogleGenAI } from '@google/genai'
 
-import { createIntelSnapshot } from './orchestrator.ts'
+import { createIntelSnapshot } from './orchestrator'
 import {
   dispatchSmsForScenario,
   getSmsCenterState,
   runAutomaticSmsEvaluation,
   subscribeToSms,
   unsubscribeFromSms,
-} from './notifications/service.ts'
+} from './notifications/service'
 import type {
   IntelSnapshot,
   SimulationScenario,
   SmsAlertType,
   SmsSubscribeInput,
   ThreatLevel,
-} from '../shared/types.ts'
+} from '../shared/types'
 
 export class ApiError extends Error {
   status: number

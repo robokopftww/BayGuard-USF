@@ -19,7 +19,7 @@ import { startTransition, useCallback, useEffect, useState, type ReactNode } fro
 import { IntelMap } from './components/IntelMap'
 import SmsPage from './pages/SmsPage'
 import './App.css'
-import type { IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types.ts'
+import type { IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types'
 
 function App() {
   const location = useLocation()

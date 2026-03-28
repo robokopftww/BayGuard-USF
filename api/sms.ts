@@ -1,5 +1,5 @@
-import { getSmsPayload } from '../server/api.ts'
-import { errorResponse, jsonResponse } from './_utils.ts'
+import { getSmsPayload } from '../server/api'
+import { errorResponse, jsonResponse } from './_utils'
 
 export async function GET() {
   try {

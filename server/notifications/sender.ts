@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import type { SmsProvider, ThreatLevel } from '../../shared/types.ts'
+import type { SmsProvider, ThreatLevel } from '../../shared/types'
 
 export interface SmsRuntimeConfig {
   provider: SmsProvider

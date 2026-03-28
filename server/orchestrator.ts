@@ -4,7 +4,7 @@ import {
   fetchCoastalSignal,
   fetchTropicalSignal,
   fetchWeatherSignal,
-} from './data-sources.ts'
+} from './data-sources'
 import type {
   AgentIntel,
   CoastalSignal,
@@ -17,7 +17,7 @@ import type {
   TropicalSignal,
   WeatherSignal,
   ZoneRisk,
-} from '../shared/types.ts'
+} from '../shared/types'
 
 const LOCATION = {
   name: 'Tampa',
