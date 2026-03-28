@@ -16,8 +16,8 @@ import {
   getSmsPayload,
   unsubscribeSmsSubscriberPayload,
   verifyPayload,
-} from './api'
-import { getSmsRuntimeConfig } from './notifications/sender'
+} from './api.js'
+import { getSmsRuntimeConfig } from './notifications/sender.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

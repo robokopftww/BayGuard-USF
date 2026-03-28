@@ -1,20 +1,20 @@
 import { GoogleGenAI } from '@google/genai'
 
-import { createIntelSnapshot } from './orchestrator'
+import { createIntelSnapshot } from './orchestrator.js'
 import {
   dispatchSmsForScenario,
   getSmsCenterState,
   runAutomaticSmsEvaluation,
   subscribeToSms,
   unsubscribeFromSms,
-} from './notifications/service'
+} from './notifications/service.js'
 import type {
   IntelSnapshot,
   SimulationScenario,
   SmsAlertType,
   SmsSubscribeInput,
   ThreatLevel,
-} from '../shared/types'
+} from '../shared/types.js'
 
 export class ApiError extends Error {
   status: number

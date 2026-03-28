@@ -1,5 +1,5 @@
-import { getIntelPayload } from '../server/api'
-import { errorResponse, jsonResponse } from './_utils'
+import { getIntelPayload } from '../server/api.js'
+import { errorResponse, jsonResponse } from './_utils.js'
 
 export async function GET(request: Request) {
   const url = new URL(request.url)

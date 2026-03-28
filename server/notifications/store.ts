@@ -9,7 +9,7 @@ import type {
   SmsDispatchRecord,
   SmsSubscribeInput,
   ThreatLevel,
-} from '../../shared/types'
+} from '../../shared/types.js'
 
 export interface StoredSubscriber {
   id: string

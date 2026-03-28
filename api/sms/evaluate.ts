@@ -1,5 +1,5 @@
-import { evaluateSmsPayload } from '../../server/api'
-import { errorResponse, jsonResponse } from '../_utils'
+import { evaluateSmsPayload } from '../../server/api.js'
+import { errorResponse, jsonResponse } from '../_utils.js'
 
 export async function POST() {
   try {

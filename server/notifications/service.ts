@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 
-import { createIntelSnapshot } from '../orchestrator'
+import { createIntelSnapshot } from '../orchestrator.js'
 import type {
   IntelSnapshot,
   SimulationScenario,
@@ -10,8 +10,8 @@ import type {
   SmsDispatchResult,
   SmsSubscribeInput,
   ThreatLevel,
-} from '../../shared/types'
-import { getSmsRuntimeConfig, sendSmsMessage } from './sender'
+} from '../../shared/types.js'
+import { getSmsRuntimeConfig, sendSmsMessage } from './sender.js'
 import {
   buildSmsCenterState,
   deactivateSubscriber,
@@ -20,7 +20,7 @@ import {
   updateNotificationStore,
   type StoredDispatch,
   type StoredSubscriber,
-} from './store'
+} from './store.js'
 
 const threatLevels: ThreatLevel[] = ['low', 'guarded', 'elevated', 'high', 'severe']
 const significantAlertPattern =
