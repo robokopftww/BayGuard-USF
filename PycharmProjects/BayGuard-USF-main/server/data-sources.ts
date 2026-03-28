@@ -7,7 +7,7 @@ import type {
   TropicalSignal,
   TropicalSystemSignal,
   WeatherSignal,
-} from '../shared/types.ts'
+} from '../shared/types.js'
 
 const TAMPA_POINT = {
   lat: 27.9506,

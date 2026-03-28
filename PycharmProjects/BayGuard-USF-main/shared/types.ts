@@ -4,6 +4,12 @@ export type AgentStatus = 'nominal' | 'watch' | 'alert' | 'critical'
 
 export type SimulationScenario = 'live' | 'flood' | 'hurricane' | 'compound'
 
+export type SmsProvider = 'mock' | 'twilio'
+
+export type SmsAlertType = 'general' | 'flood' | 'storm' | 'weather'
+
+export type SmsDispatchStatus = 'mocked' | 'sent' | 'skipped' | 'failed'
+
 export interface LocationInfo {
   name: string
   county: string
@@ -146,4 +152,67 @@ export interface IntelSnapshot {
     coastal: CoastalSignal
     tropical: TropicalSignal
   }
+}
+
+export interface SmsSubscriber {
+  id: string
+  name: string
+  phoneMasked: string
+  minThreatLevel: ThreatLevel
+  alertTypes: SmsAlertType[]
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  lastAlertAt?: string
+}
+
+export interface SmsDispatchRecord {
+  id: string
+  scenario: SimulationScenario
+  headline: string
+  threatLevel: ThreatLevel
+  categories: SmsAlertType[]
+  createdAt: string
+  recipientCount: number
+  deliveredCount: number
+  failedCount: number
+  provider: SmsProvider
+  status: SmsDispatchStatus
+  messagePreview: string
+  reason: string
+}
+
+export interface SmsCenterState {
+  provider: SmsProvider
+  sendMode: 'dry-run' | 'live'
+  schedulerEnabled: boolean
+  evaluationIntervalMinutes: number
+  cooldownMinutes: number
+  note: string
+  subscribers: SmsSubscriber[]
+  recentDispatches: SmsDispatchRecord[]
+  lastEvaluationAt?: string
+  lastSuccessfulSendAt?: string
+}
+
+export interface SmsSubscribeInput {
+  name?: string
+  phone: string
+  minThreatLevel: ThreatLevel
+  alertTypes: SmsAlertType[]
+}
+
+export interface SmsDispatchRequest {
+  scenario?: SimulationScenario
+  force?: boolean
+}
+
+export interface SmsDispatchResult {
+  outcome: SmsDispatchStatus
+  reason: string
+  provider: SmsProvider
+  recipients: number
+  deliveredCount: number
+  failedCount: number
+  event?: SmsDispatchRecord
 }
