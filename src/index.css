@@ -1,12 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 
 :root {
-  --canvas: #eef3f8;
+  --canvas: #edf4f8;
   --panel: rgba(255, 255, 255, 0.82);
   --slate-strong: #0f172a;
   --slate-soft: #64748b;
   --slate-ink: #243244;
   --teal-700: #16898c;
+  --teal-500: #40b8a2;
+  --coral-500: #f77158;
+  --sky-500: #77b7ff;
   --font-display: 'Sora', 'Avenir Next', 'Segoe UI', sans-serif;
   --font-mono: 'Space Mono', 'SFMono-Regular', monospace;
   color: var(--slate-ink);
@@ -32,9 +35,11 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(64, 184, 162, 0.12), transparent 32%),
-    radial-gradient(circle at top right, rgba(247, 113, 88, 0.14), transparent 28%),
-    linear-gradient(180deg, #eef3f8 0%, #f8fbff 100%);
+    radial-gradient(circle at top left, rgba(64, 184, 162, 0.16), transparent 26%),
+    radial-gradient(circle at top right, rgba(247, 113, 88, 0.16), transparent 24%),
+    radial-gradient(circle at 20% 80%, rgba(119, 183, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, #edf4f8 0%, #f7fbff 100%);
+  background-attachment: fixed;
 }
 
 body,
@@ -72,6 +77,6 @@ dd {
 }
 
 #root {
-  width: min(1600px, 100%);
+  width: min(1640px, 100%);
   margin: 0 auto;
 }
