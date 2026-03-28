@@ -1,23 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 
 :root {
-  --sand-50: #f9f3e7;
-  --sea-700: #198f88;
-  --sun-500: #f0a239;
-  --alert-600: #d94827;
-  --ink: #294155;
-  --ink-soft: #5e7384;
-  --ink-strong: #132438;
-  --font-display: 'Space Grotesk', 'Avenir Next', 'Trebuchet MS', sans-serif;
-  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
-  color: var(--ink);
-  background: var(--sand-50);
+  --canvas: #eef3f8;
+  --panel: rgba(255, 255, 255, 0.82);
+  --slate-strong: #0f172a;
+  --slate-soft: #64748b;
+  --slate-ink: #243244;
+  --teal-700: #16898c;
+  --font-display: 'Sora', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-mono: 'Space Mono', 'SFMono-Regular', monospace;
+  color: var(--slate-ink);
+  background: var(--canvas);
   font-family: var(--font-display);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 * {
@@ -31,6 +30,11 @@ html {
 body {
   margin: 0;
   min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(64, 184, 162, 0.12), transparent 32%),
+    radial-gradient(circle at top right, rgba(247, 113, 88, 0.14), transparent 28%),
+    linear-gradient(180deg, #eef3f8 0%, #f8fbff 100%);
 }
 
 body,
@@ -41,7 +45,8 @@ select {
   font-family: var(--font-display);
 }
 
-button {
+button,
+select {
   font: inherit;
 }
 
@@ -51,31 +56,22 @@ a {
 
 h1,
 h2,
-h3 {
-  color: var(--ink-strong);
-  letter-spacing: -0.04em;
-  line-height: 0.96;
-}
-
-h1 {
-  margin: 0;
-  font-size: clamp(2.8rem, 6vw, 5.25rem);
-}
-
-h2 {
-  line-height: 1.05;
+h3,
+h4 {
+  color: var(--slate-strong);
+  letter-spacing: -0.045em;
 }
 
 p,
-li,
 small,
 span,
+li,
 dt,
 dd {
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 #root {
-  width: min(1440px, 100%);
+  width: min(1600px, 100%);
   margin: 0 auto;
 }
