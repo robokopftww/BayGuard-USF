@@ -155,6 +155,90 @@ function unique(items: string[]): string[] {
   return Array.from(new Set(items.filter(Boolean)))
 }
 
+function buildFallbackHourlyPeriods() {
+  return Array.from({ length: 12 }, (_, index) => {
+    const startTime = new Date(Date.now() + index * 60 * 60 * 1000).toISOString()
+
+    return {
+      startTime,
+      temperature: 78,
+      shortForecast: 'Monitoring data source availability',
+      precipitationChance: 0,
+    }
+  })
+}
+
+function buildFallbackWeatherSignal(reason?: unknown): WeatherSignal {
+  return {
+    updatedAt: new Date().toISOString(),
+    office: 'TBW',
+    forecastSummary: ['Weather feed temporarily unavailable'],
+    hourly: buildFallbackHourlyPeriods(),
+    maxPrecipMmNext12h: 0,
+    maxPrecipChanceNext12h: 0,
+    maxWindGustMphNext12h: 0,
+    alerts: reason
+      ? [
+          buildAlert(
+            'weather-feed-degraded',
+            'Weather Feed Degraded',
+            'Minor',
+            'BayGuard is using fallback weather telemetry while the NWS feed is unavailable.',
+            'Expected',
+          ),
+        ]
+      : [],
+  }
+}
+
+function buildFallbackCoastalSignal(): CoastalSignal {
+  return {
+    updatedAt: new Date().toISOString(),
+    stations: [
+      {
+        stationId: '8726607',
+        name: 'Old Port Tampa',
+        lat: 27.8578,
+        lon: -82.5528,
+        latestObservedFt: 0,
+        observedAt: new Date().toISOString(),
+        maxPredictedFtNext24h: 0,
+      },
+      {
+        stationId: '8726520',
+        name: 'St. Petersburg',
+        lat: 27.7606,
+        lon: -82.6269,
+        latestObservedFt: 0,
+        observedAt: new Date().toISOString(),
+        maxPredictedFtNext24h: 0,
+      },
+      {
+        stationId: '8726384',
+        name: 'Port Manatee',
+        lat: 27.6387,
+        lon: -82.5621,
+        latestObservedFt: 0,
+        observedAt: new Date().toISOString(),
+        maxPredictedFtNext24h: 0,
+      },
+    ],
+    maxObservedFt: 0,
+    maxPredictedFtNext24h: 0,
+  }
+}
+
+function buildFallbackTropicalSignal(reason?: unknown): TropicalSignal {
+  return {
+    updatedAt: new Date().toISOString(),
+    basin: 'Atlantic / Gulf',
+    outlook: reason
+      ? 'The National Hurricane Center feed is temporarily unavailable, so BayGuard is keeping the storm desk in conservative fallback monitoring.'
+      : 'The Atlantic desk is in fallback monitoring mode.',
+    activeSystems: [],
+  }
+}
+
 function scoreToThreat(score: number): ThreatLevel {
   if (score >= 0.85) {
     return 'severe'
@@ -787,11 +871,22 @@ function applySimulation(
 }
 
 export async function createIntelSnapshot(scenario: SimulationScenario = 'live'): Promise<IntelSnapshot> {
-  const [liveWeatherSignal, liveCoastalSignal, liveTropicalSignal] = await Promise.all([
+  const [weatherResult, coastalResult, tropicalResult] = await Promise.allSettled([
     fetchWeatherSignal(),
     fetchCoastalSignal(),
     fetchTropicalSignal(),
   ])
+
+  const liveWeatherSignal =
+    weatherResult.status === 'fulfilled'
+      ? weatherResult.value
+      : buildFallbackWeatherSignal(weatherResult.reason)
+  const liveCoastalSignal =
+    coastalResult.status === 'fulfilled' ? coastalResult.value : buildFallbackCoastalSignal()
+  const liveTropicalSignal =
+    tropicalResult.status === 'fulfilled'
+      ? tropicalResult.value
+      : buildFallbackTropicalSignal(tropicalResult.reason)
 
   const { weatherSignal, coastalSignal, tropicalSignal } = applySimulation(
     liveWeatherSignal,

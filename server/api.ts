@@ -87,13 +87,21 @@ export async function getIntelPayload(input: {
     return cached.value
   }
 
-  const snapshot = await createIntelSnapshot(scenario)
-  cache = {
-    value: snapshot,
-    fetchedAt: Date.now(),
-  }
+  try {
+    const snapshot = await createIntelSnapshot(scenario)
+    cache = {
+      value: snapshot,
+      fetchedAt: Date.now(),
+    }
 
-  return snapshot
+    return snapshot
+  } catch (error) {
+    if (cached && cached.value.simulation.scenario === scenario) {
+      return cached.value
+    }
+
+    throw error
+  }
 }
 
 export async function getSmsPayload() {
