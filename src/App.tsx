@@ -293,60 +293,64 @@ function OverviewPage({
     <div className="page-grid page-grid-overview">
       <section className="hero-card overview-hero">
         <div className="overview-hero-grid">
-          <div className="hero-mast">
-            <div className="hero-badge-row">
-              <span className={`overview-status-pill ${severityClass(currentThreat)}`}>{statusLabel}</span>
-              <span className="overview-meta-pill">
-                {snapshot ? `Updated ${formatTimestamp(snapshot.generatedAt)}` : 'Loading live updates'}
-              </span>
-            </div>
-            <p className="page-kicker">For Tampa residents</p>
-            <h3>{overview?.headline ?? 'Tampa is in quiet watch mode'}</h3>
-            <p>
-              {compactText(
-                overview?.summary ??
-                  'BayGuard is watching Tampa weather, flood, and tropical conditions so residents can quickly understand what matters right now.',
-                170,
-              )}
-            </p>
-
-            <div className="hero-summary-grid">
-              <article className="hero-summary-card">
-                <span>Most exposed area</span>
-                <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
-                <small>{leadZone?.neighborhood ?? 'Citywide monitoring is active.'}</small>
-              </article>
-              <article className="hero-summary-card">
-                <span>Official alerts</span>
-                <strong>{officialAlertCount}</strong>
-                <small>{officialAlertCount ? 'Weather Service notices are active now.' : 'No official notices are active right now.'}</small>
-              </article>
-              <article className="hero-summary-card">
-                <span>BayGuard confidence</span>
-                <strong>{overviewConfidence}</strong>
-                <small>{overview?.monitoringMode ?? 'Citywide posture is being monitored live.'}</small>
-              </article>
+          <div className="hero-mast-shell">
+            <div className="hero-mast">
+              <div className="hero-badge-row">
+                <span className={`overview-status-pill ${severityClass(currentThreat)}`}>{statusLabel}</span>
+                <span className="overview-meta-pill">
+                  {snapshot ? `Updated ${formatTimestamp(snapshot.generatedAt)}` : 'Loading live updates'}
+                </span>
+              </div>
+              <p className="page-kicker">For Tampa residents</p>
+              <h3>{overview?.headline ?? 'Tampa is in quiet watch mode'}</h3>
+              <p>
+                {compactText(
+                  overview?.summary ??
+                    'BayGuard is watching Tampa weather, flood, and tropical conditions so residents can quickly understand what matters right now.',
+                  170,
+                )}
+              </p>
             </div>
 
-            <div className="hero-actions-grid">
-              <QuickActionCard
-                to="/map"
-                title="Map room"
-                caption="See which neighborhoods and bayfront zones need attention."
-                icon={<Map size={18} />}
-              />
-              <QuickActionCard
-                to="/alerts"
-                title="Alerts desk"
-                caption="Review active incidents, official notices, and response language."
-                icon={<BellRing size={18} />}
-              />
-              <QuickActionCard
-                to="/sms"
-                title="SMS alerts"
-                caption="Manage subscribers and test live or drill dispatches."
-                icon={<Smartphone size={18} />}
-              />
+            <div className="hero-mast-bottom">
+              <div className="hero-summary-grid">
+                <article className="hero-summary-card">
+                  <span>Most exposed area</span>
+                  <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
+                  <small>{leadZone?.neighborhood ?? 'Citywide monitoring is active.'}</small>
+                </article>
+                <article className="hero-summary-card">
+                  <span>Official alerts</span>
+                  <strong>{officialAlertCount}</strong>
+                  <small>{officialAlertCount ? 'Weather Service notices are active now.' : 'No official notices are active right now.'}</small>
+                </article>
+                <article className="hero-summary-card">
+                  <span>BayGuard confidence</span>
+                  <strong>{overviewConfidence}</strong>
+                  <small>{overview?.monitoringMode ?? 'Citywide posture is being monitored live.'}</small>
+                </article>
+              </div>
+
+              <div className="hero-actions-grid">
+                <QuickActionCard
+                  to="/map"
+                  title="Map room"
+                  caption="See which neighborhoods and bayfront zones need attention."
+                  icon={<Map size={18} />}
+                />
+                <QuickActionCard
+                  to="/alerts"
+                  title="Alerts desk"
+                  caption="Review active incidents, official notices, and response language."
+                  icon={<BellRing size={18} />}
+                />
+                <QuickActionCard
+                  to="/sms"
+                  title="SMS alerts"
+                  caption="Manage subscribers and test live or drill dispatches."
+                  icon={<Smartphone size={18} />}
+                />
+              </div>
             </div>
           </div>
 
@@ -357,43 +361,38 @@ function OverviewPage({
               <p>{threatNarrative}</p>
             </div>
 
-            <div className="snapshot-stat-grid snapshot-stat-grid-tight">
-              <article className="snapshot-stat-card">
+            <div className="overview-pulse-row">
+              <article className="overview-pulse-card">
                 <span>Threat level</span>
                 <strong>{formatThreat(currentThreat)}</strong>
-                <small>Current citywide posture.</small>
               </article>
-              <article className="snapshot-stat-card">
+              <article className="overview-pulse-card">
                 <span>Areas watched</span>
                 <strong>{activeWatchCount}</strong>
-                <small>Neighborhoods with elevated monitoring.</small>
               </article>
-              <article className="snapshot-stat-card">
+            </div>
+
+            <div className="snapshot-stat-grid snapshot-stat-grid-tight">
+              <article className="snapshot-stat-card snapshot-stat-card-compact">
                 <span>Peak tide</span>
                 <strong>{coastal ? `${coastal.maxPredictedFtNext24h.toFixed(2)} ft` : '--'}</strong>
                 <small>Highest predicted coastal level in the next 24 hours.</small>
               </article>
-              <article className="snapshot-stat-card">
+              <article className="snapshot-stat-card snapshot-stat-card-compact">
                 <span>Peak gust</span>
                 <strong>{weather ? `${weather.maxWindGustMphNext12h.toFixed(1)} mph` : '--'}</strong>
                 <small>Strongest forecast wind in the next 12 hours.</small>
               </article>
             </div>
 
-            <div className="overview-side-list">
-              <div className="overview-side-item">
-                <strong>{formatCount(officialAlertCount, 'official alert')}</strong>
-                <span>National Weather Service notices active now.</span>
-              </div>
-              <div className="overview-side-item">
-                <strong>{formatCount(incidents.length, 'incident card')}</strong>
-                <span>Live BayGuard incidents currently visible in the alert desk.</span>
-              </div>
-              <div className="overview-side-item">
-                <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
-                <span>{leadZone?.reason ?? 'No standout hotspot at the moment.'}</span>
-              </div>
-            </div>
+            <article className="overview-focus-card">
+              <span className="page-kicker">Focus area</span>
+              <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
+              <p>{compactText(leadZone?.reason ?? 'No standout hotspot at the moment.', 160)}</p>
+              <small>
+                {formatCount(officialAlertCount, 'official alert')} and {formatCount(incidents.length, 'incident card')} are visible right now.
+              </small>
+            </article>
           </aside>
         </div>
 
