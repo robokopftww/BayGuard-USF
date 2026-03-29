@@ -338,6 +338,18 @@
   align-items: start;
 }
 
+.page-grid-reports .hero-card h3,
+.page-grid-reports .panel-card h3 {
+  font-size: clamp(1.24rem, 2vw, 1.95rem);
+  line-height: 1.02;
+}
+
+.page-grid-reports .hero-card p,
+.page-grid-reports .panel-card p,
+.page-grid-reports .panel-card small {
+  max-width: 46ch;
+}
+
 .page-grid-about {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;

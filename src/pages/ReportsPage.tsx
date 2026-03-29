@@ -180,7 +180,7 @@ function ReportsPage() {
       <section className="hero-card reports-hero">
         <div className="hero-mast">
           <p className="page-kicker">Community reports</p>
-          <h3>Let people report what they see. BayGuard checks whether it lines up.</h3>
+          <h3>Share a report. BayGuard checks it live.</h3>
           <p>
             Residents can flag flooding, blocked roads, outages, or storm damage. BayGuard then
             compares those reports with the latest Tampa weather, water levels, outage activity,
@@ -315,7 +315,7 @@ function ReportsPage() {
         <div className="panel-head">
           <div>
             <p className="page-kicker">How reports are checked</p>
-            <h3>How BayGuard reviews each report</h3>
+            <h3>How reports are checked</h3>
           </div>
           <ShieldCheck size={18} />
         </div>
@@ -355,7 +355,7 @@ function ReportsPage() {
         <div className="panel-head">
           <div>
             <p className="page-kicker">Recent reports</p>
-            <h3>{reportState?.reports.length ? 'What residents are seeing on the ground' : 'No reports yet'}</h3>
+            <h3>{reportState?.reports.length ? 'Recent reports' : 'No reports yet'}</h3>
           </div>
           <Activity size={18} />
         </div>

@@ -326,7 +326,7 @@ function OverviewPage({
   const threatNarrative = friendlyThreatNarrative(currentThreat)
   const monitoringLabel = snapshot?.simulation.isSimulated
     ? snapshot.simulation.label
-    : 'Live community monitoring'
+    : 'Tampa right now'
   const guidanceCards = [
     {
       title: 'Residents',
@@ -358,28 +358,28 @@ function OverviewPage({
       value: `${verifiedReports}`,
       detail:
         reportState?.stats.likelyCount && reportState.stats.likelyCount > 0
-          ? `${reportState.stats.likelyCount} more are likely`
+          ? `${reportState.stats.likelyCount} more need review`
           : totalReports > 0
-            ? `${totalReports} report${totalReports === 1 ? '' : 's'} reviewed`
-            : 'No community claims yet',
+            ? `${totalReports} checked so far`
+            : 'No confirmed reports',
     },
     {
       label: 'High-risk zones',
       value: `${highRiskZoneCount}`,
-      detail: `${activeWatchCount} neighborhoods under active monitoring`,
+      detail: `${activeWatchCount} areas being watched`,
     },
     {
       label: 'Alerts generated',
       value: `${generatedAlertCount}`,
       detail:
         generatedAlertCount > 0
-          ? 'Warnings and recent updates are visible'
-          : 'No active warning package right now',
+          ? 'Warnings and updates are live'
+          : 'No active warnings',
     },
     {
       label: 'Live feeds connected',
       value: `${connectedSourceCount}`,
-      detail: 'NWS, NOAA, NHC, plus community intelligence',
+      detail: 'NWS, NOAA, NHC, and local reports',
     },
   ] as const
 
@@ -396,12 +396,9 @@ function OverviewPage({
                 </span>
                 <span className="overview-meta-pill">{scenarioLabel(currentScenario)}</span>
               </div>
-              <p className="page-kicker">Real-time Tampa safety updates</p>
-              <h3>BayGuard gives Tampa a clear view of changing flood and storm conditions.</h3>
-              <p>
-                BayGuard follows rainfall, tides, wind, and resident updates so people can quickly
-                see what matters now, where it matters most, and what to do next.
-              </p>
+              <p className="page-kicker">Live Tampa updates</p>
+              <h3>See flood and storm risk across Tampa.</h3>
+              <p>Rain, tides, wind, and resident reports in one quick view.</p>
             </div>
 
             <div className="hero-mast-bottom">
@@ -418,15 +415,15 @@ function OverviewPage({
               <div className="hero-cta-row">
                 <NavLink to="/map" className="hero-primary-link">
                   <Map size={18} />
-                  <span>Open live risk map</span>
+                  <span>Open map</span>
                 </NavLink>
                 <NavLink to="/about" className="hero-secondary-link">
                   <Sparkles size={18} />
-                  <span>How BayGuard works</span>
+                  <span>How it works</span>
                 </NavLink>
                 <NavLink to="/reports" className="hero-secondary-link">
                   <MessageSquareWarning size={18} />
-                  <span>Check resident reports</span>
+                  <span>View reports</span>
                 </NavLink>
                 <button
                   type="button"
@@ -434,7 +431,7 @@ function OverviewPage({
                   onClick={() => onLaunchScenario('flood')}
                 >
                   <Workflow size={18} />
-                  <span>Preview flood scenario</span>
+                  <span>Run flood demo</span>
                 </button>
               </div>
             </div>
@@ -453,7 +450,7 @@ function OverviewPage({
                 <strong>{formatThreat(currentThreat)}</strong>
               </article>
               <article className="overview-pulse-card">
-                <span>Areas watched</span>
+                <span>Zones watched</span>
                 <strong>{activeWatchCount}</strong>
               </article>
             </div>
@@ -462,21 +459,21 @@ function OverviewPage({
               <article className="snapshot-stat-card snapshot-stat-card-compact">
                 <span>Peak tide</span>
                 <strong>{coastal ? `${coastal.maxPredictedFtNext24h.toFixed(2)} ft` : '--'}</strong>
-                <small>Highest predicted coastal level in the next 24 hours.</small>
+                <small>Next 24 hours</small>
               </article>
               <article className="snapshot-stat-card snapshot-stat-card-compact">
                 <span>Peak gust</span>
                 <strong>{weather ? `${weather.maxWindGustMphNext12h.toFixed(1)} mph` : '--'}</strong>
-                <small>Strongest forecast wind in the next 12 hours.</small>
+                <small>Next 12 hours</small>
               </article>
             </div>
 
             <article className="overview-focus-card">
-              <span className="page-kicker">Why it matters</span>
+              <span className="page-kicker">Focus area</span>
               <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
-              <p>{compactText(leadZone?.reason ?? 'No standout hotspot at the moment.', 160)}</p>
+              <p>{compactText(leadZone?.reason ?? 'No standout hotspot right now.', 108)}</p>
               <small>
-                {formatCount(officialAlertCount, 'official warning')}, {formatCount(incidents.length, 'recent update')}, and BayGuard&apos;s confidence is {overviewConfidence}.
+                {formatCount(officialAlertCount, 'warning')} · {formatCount(incidents.length, 'update')} · {overviewConfidence} confidence
               </small>
             </article>
           </aside>
@@ -520,7 +517,7 @@ function OverviewPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">Neighborhood watch</p>
-            <h3>Where attention is building across Tampa</h3>
+            <h3>Areas to watch</h3>
           </div>
           <Map size={18} />
         </div>
@@ -552,7 +549,7 @@ function OverviewPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">Everyday guidance</p>
-            <h3>What people in Tampa should keep in mind</h3>
+            <h3>What to know</h3>
           </div>
           <House size={18} />
         </div>
@@ -574,7 +571,7 @@ function OverviewPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">Recent updates</p>
-            <h3>{incidents.length ? 'Current alerts and reports' : 'Nothing urgent right now'}</h3>
+            <h3>{incidents.length ? 'Latest alerts' : 'Nothing urgent'}</h3>
           </div>
           <CircleAlert size={18} />
         </div>
@@ -597,7 +594,7 @@ function OverviewPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">What to do next</p>
-            <h3>Helpful next steps if conditions start changing</h3>
+            <h3>Next steps</h3>
           </div>
           <Compass size={18} />
         </div>
@@ -755,7 +752,7 @@ function AboutPage({
                 </span>
               </div>
               <p className="page-kicker">About BayGuard</p>
-              <h3>BayGuard helps Tampa understand flood and storm risk in plain language.</h3>
+              <h3>How BayGuard helps Tampa.</h3>
               <p>
                 It brings together weather updates, water levels, resident reports, and alerts in
                 one place so people can quickly understand what is happening and what to do next.
@@ -806,7 +803,7 @@ function AboutPage({
           <aside className="overview-command-card">
             <div className="overview-command-intro">
               <p className="page-kicker">At a glance</p>
-              <h4>What BayGuard is tracking right now</h4>
+              <h4>What BayGuard tracks</h4>
               <p>
                 BayGuard brings together local weather, water, resident reports, and alerts in one
                 place so changes are easier to understand.
@@ -840,7 +837,7 @@ function AboutPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">Main features</p>
-            <h3>What BayGuard actually does</h3>
+            <h3>What BayGuard does</h3>
           </div>
           <DatabaseZap size={18} />
         </div>
@@ -863,7 +860,7 @@ function AboutPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">End-to-end demo flow</p>
-            <h3>How one report moves through BayGuard</h3>
+            <h3>How one report moves</h3>
           </div>
           <Workflow size={18} />
         </div>
@@ -897,7 +894,7 @@ function AboutPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">How BayGuard checks things</p>
-            <h3>How BayGuard checks different kinds of risk</h3>
+            <h3>How BayGuard checks risk</h3>
           </div>
           <Bot size={18} />
         </div>
@@ -920,7 +917,7 @@ function AboutPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">Live sources</p>
-            <h3>Connected Tampa updates</h3>
+            <h3>Tampa data sources</h3>
           </div>
           <DatabaseZap size={18} />
         </div>
@@ -949,7 +946,7 @@ function AboutPage({
         <div className="panel-head">
           <div>
             <p className="page-kicker">Why Tampa?</p>
-            <h3>Why Tampa needs closer watching</h3>
+            <h3>Why Tampa needs BayGuard</h3>
           </div>
           <Compass size={18} />
         </div>
@@ -983,7 +980,7 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
         <div className="panel-head">
           <div>
             <p className="page-kicker">City map</p>
-            <h3>Spatial watch over Tampa Bay</h3>
+            <h3>Tampa risk map</h3>
           </div>
           <div className="legend-strip">
             <span><i className="legend-swatch legend-flood" /> Flood</span>
@@ -1092,7 +1089,7 @@ function AlertsPage({ alerts, incidents, overview, snapshot }: AlertsPageProps) 
         <div className="panel-head">
           <div>
             <p className="page-kicker">Recent alerts</p>
-            <h3>{incidents.length ? 'What needs attention right now' : 'No active alerts yet'}</h3>
+            <h3>{incidents.length ? 'What needs attention' : 'No active alerts'}</h3>
           </div>
           <Siren size={18} />
         </div>
@@ -1115,7 +1112,7 @@ function AlertsPage({ alerts, incidents, overview, snapshot }: AlertsPageProps) 
         <div className="panel-head">
           <div>
             <p className="page-kicker">Official notices</p>
-            <h3>{alerts.length ? 'Weather service alerts' : 'No official alerts'}</h3>
+            <h3>{alerts.length ? 'Official weather alerts' : 'No official alerts'}</h3>
           </div>
           <CircleAlert size={18} />
         </div>
@@ -1273,45 +1270,45 @@ function friendlyThreatLabel(level: ThreatLevel): string {
 function friendlyThreatNarrative(level: ThreatLevel): string {
   switch (level) {
     case 'severe':
-      return 'Serious conditions are active or expected soon. Use the map and alerts pages first, then follow official safety guidance.'
+      return 'Dangerous conditions are active. Check alerts and follow official guidance now.'
     case 'high':
-      return 'Conditions are building enough that residents should stay alert, review local alerts, and be ready to adjust plans.'
+      return 'Conditions are building. Stay alert and review local warnings.'
     case 'elevated':
-      return 'Some signals are starting to rise. It is a good time to check exposed neighborhoods and keep an eye on new alerts.'
+      return 'Some signals are rising. Keep an eye on exposed areas and new alerts.'
     case 'guarded':
-      return 'Tampa is under a light watch. There is no major hazard right now, but BayGuard is tracking changing conditions.'
+      return 'No major hazard right now, but conditions are being watched.'
     default:
-      return 'No major hazards are active right now. This page gives a quick read on the city while BayGuard keeps monitoring in the background.'
+      return 'No major hazards are active right now.'
   }
 }
 
 function residentGuidance(level: ThreatLevel): string {
   switch (level) {
     case 'severe':
-      return 'Follow official emergency guidance now, stay off risky streets, and check in with family or neighbors who may need help.'
+      return 'Follow emergency guidance and stay off risky streets.'
     case 'high':
-      return 'Keep plans flexible today, avoid low-lying areas, and be ready for quick changes if local warnings increase.'
+      return 'Avoid low areas and be ready for quick changes.'
     case 'elevated':
-      return 'Conditions are starting to build. Check alerts before heading out and keep your phone notifications on.'
+      return 'Check alerts before heading out.'
     case 'guarded':
-      return 'Nothing urgent is happening now, but BayGuard is watching closely so you can react early if that changes.'
+      return 'Nothing urgent right now, but stay aware.'
     default:
-      return 'A calm day across Tampa. This is a good time to get familiar with the map and alerts pages before you need them.'
+      return 'A calm day across Tampa.'
   }
 }
 
 function driverGuidance(level: ThreatLevel): string {
   switch (level) {
     case 'severe':
-      return 'Avoid unnecessary travel and never drive into standing water. Use alternate routes if any streets start closing.'
+      return 'Avoid extra travel and never drive into standing water.'
     case 'high':
-      return 'Skip flood-prone shortcuts, underpasses, and bayfront roads if conditions worsen later today.'
+      return 'Avoid flood-prone roads and underpasses.'
     case 'elevated':
-      return 'Give yourself extra time and watch the map for any pockets of heavy rain or drainage trouble.'
+      return 'Give yourself extra time and watch the map.'
     case 'guarded':
-      return 'Road impacts are unlikely right now, but common ponding spots are worth checking before peak traffic.'
+      return 'Road impacts are unlikely, but check usual ponding spots.'
     default:
-      return 'Travel conditions look normal, with BayGuard standing by in case weather or water levels start changing.'
+      return 'Travel conditions look normal.'
   }
 }
 
@@ -1323,15 +1320,15 @@ function waterfrontGuidance(level: ThreatLevel, peakWaterFt?: number): string {
 
   switch (level) {
     case 'severe':
-      return `${waterNote} Stay away from exposed shoreline areas and follow official instructions near the coast.`
+      return `${waterNote} Avoid exposed shoreline areas.`
     case 'high':
-      return `${waterNote} People near the bay should be ready for quick changes in shoreline or street conditions.`
+      return `${waterNote} Be ready for quick shoreline changes.`
     case 'elevated':
-      return `${waterNote} It is a good time to watch waterfront neighborhoods and check the map before heading out.`
+      return `${waterNote} Check waterfront areas before heading out.`
     case 'guarded':
-      return `${waterNote} Conditions are steady for now, but the bayfront is still being monitored.`
+      return `${waterNote} Conditions are steady for now.`
     default:
-      return `${waterNote} No major coastal concern is active at the moment.`
+      return `${waterNote} No major coastal concern right now.`
   }
 }
 
@@ -1349,7 +1346,7 @@ const scenarioOptions: Array<{ value: SimulationScenario; label: string }> = [
   { value: 'live', label: 'Live Tampa updates' },
   { value: 'flood', label: 'Flood practice' },
   { value: 'hurricane', label: 'Hurricane practice' },
-  { value: 'compound', label: 'Combined weather event' },
+  { value: 'compound', label: 'Combined event' },
 ]
 
 const navItems = [
@@ -1364,37 +1361,37 @@ const navItems = [
 const pageMeta: Record<string, { kicker: string; title: string; description: string }> = {
   '/': {
     kicker: 'Overview',
-    title: 'A real-time Tampa safety hub for flood, storm, and resident updates.',
+    title: 'Live Tampa flood and storm updates.',
     description:
-      'BayGuard brings together weather, water, and resident updates so people can quickly see what is changing across Tampa.',
+      'Weather, water, and resident updates in one quick city view.',
   },
   '/about': {
     kicker: 'About',
-    title: 'How BayGuard works across the city.',
+    title: 'How BayGuard works.',
     description:
       'Use this page to see what BayGuard does, how reports are checked, and why Tampa needs close monitoring.',
   },
   '/map': {
     kicker: 'Map',
-    title: 'A live city map for neighborhoods, alerts, and water levels.',
+    title: 'Live Tampa risk map.',
     description:
       'Use the map to see where conditions are building, not just how severe they are.',
   },
   '/reports': {
     kicker: 'Reports',
-    title: 'Resident reports checked against current conditions.',
+    title: 'Resident reports, checked live.',
     description:
       'Residents can share what they are seeing on the ground while BayGuard compares those reports with current Tampa conditions.',
   },
   '/alerts': {
     kicker: 'Alerts',
-    title: 'Warnings, local updates, and what to do next.',
+    title: 'Alerts and next steps.',
     description:
       'Use this page to see what happened, how serious it is, and which steps make sense next.',
   },
   '/sms': {
     kicker: 'SMS',
-    title: 'A simple place to manage text alerts.',
+    title: 'Text alerts.',
     description:
       'Add subscribers, try practice message runs, and switch to live text alerts when your message service is ready.',
   },

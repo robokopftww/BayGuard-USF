@@ -217,7 +217,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
       <section className="hero-card sms-hero">
         <div className="hero-mast">
           <p className="page-kicker">Text alerts</p>
-          <h3>Text people when Tampa conditions become more serious</h3>
+          <h3>Send text alerts when risk rises</h3>
           <p>
             Add subscribers, try practice message runs, and switch to live alerts when your
             message service is ready.
@@ -284,7 +284,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
         <div className="panel-head">
           <div>
             <p className="page-kicker">Subscribers</p>
-            <h3>Opt people into BayGuard texts</h3>
+            <h3>Add subscribers</h3>
           </div>
           <UserRoundPlus size={18} />
         </div>
@@ -359,7 +359,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
         <div className="panel-head">
           <div>
             <p className="page-kicker">Dispatch</p>
-            <h3>Send a live or practice text alert</h3>
+            <h3>Send a text alert</h3>
           </div>
           <Send size={18} />
         </div>
@@ -400,7 +400,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
             <p className="page-kicker">Current roster</p>
             <h3>
               {centerState?.subscribers.length
-                ? 'Who will receive BayGuard texts'
+                ? 'Current subscribers'
                 : 'No subscribers added yet'}
             </h3>
           </div>
@@ -465,7 +465,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
             <p className="page-kicker">Dispatch log</p>
             <h3>
               {centerState?.recentDispatches.length
-                ? 'Most recent SMS events'
+                ? 'Recent text alerts'
                 : 'No SMS events logged yet'}
             </h3>
           </div>
