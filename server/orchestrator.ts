@@ -862,8 +862,7 @@ function zoneReason(
 }
 
 function pickIncidentZone(zones: ZoneRisk[], driver: 'flood' | 'weather' | 'storm'): ZoneRisk | undefined {
-  return [...zones]
-    .sort((left, right) => {
+  const sortedZones = [...zones].sort((left, right) => {
       const leftTemplate = zoneTemplateFor(left.id)
       const rightTemplate = zoneTemplateFor(right.id)
       const leftBias =
@@ -881,7 +880,8 @@ function pickIncidentZone(zones: ZoneRisk[], driver: 'flood' | 'weather' | 'stor
 
       return right.score * (rightBias + 0.35) - left.score * (leftBias + 0.35)
     })
-    .at(0)
+
+  return sortedZones[0]
 }
 
 function buildIncidents(
