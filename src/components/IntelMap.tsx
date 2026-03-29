@@ -9,6 +9,8 @@ interface IntelMapProps {
   zones: ZoneRisk[]
 }
 
+type MapHazard = 'flood' | 'weather' | 'storm'
+
 let configuredApiKey: string | null = null
 let mapsLibrariesPromise:
   | Promise<{
@@ -47,14 +49,88 @@ function formatThreatLabel(level: ZoneRisk['threatLevel'] | Incident['severity']
   }
 }
 
+function zoneHazardType(zone: ZoneRisk): MapHazard {
+  const reason = zone.reason.toLowerCase()
+
+  if (zone.kind === 'coastal' || zone.kind === 'river') {
+    return 'flood'
+  }
+
+  if (zone.kind === 'evacuation') {
+    return 'storm'
+  }
+
+  if (/(flood|tide|coastal|shore|shoreline|waterfront|bayfront|surge|seawall|drain|pond|low-lying|creek|river|water level)/.test(reason)) {
+    return 'flood'
+  }
+
+  if (/(hurricane|tropical|storm|wind|gust|evacuat|cyclone|squall)/.test(reason)) {
+    return 'storm'
+  }
+
+  return 'weather'
+}
+
 function formatIncidentCategory(category: Incident['category']): string {
   switch (category) {
     case 'flood':
       return 'Flooding'
     case 'storm':
-      return 'Storm damage'
+      return 'Storm / hurricane'
     default:
       return 'Weather issue'
+  }
+}
+
+function hazardColor(type: MapHazard): string {
+  switch (type) {
+    case 'flood':
+      return '#159a96'
+    case 'storm':
+      return '#6d5efc'
+    default:
+      return '#d8a126'
+  }
+}
+
+function hazardLabel(type: MapHazard): string {
+  switch (type) {
+    case 'flood':
+      return 'Flood'
+    case 'storm':
+      return 'Storm / hurricane'
+    default:
+      return 'Weather'
+  }
+}
+
+function hazardShortLabel(type: MapHazard): string {
+  switch (type) {
+    case 'flood':
+      return 'F'
+    case 'storm':
+      return 'S'
+    default:
+      return 'W'
+  }
+}
+
+function hazardLabelColor(type: MapHazard): string {
+  return type === 'weather' ? '#523f00' : '#ffffff'
+}
+
+function severityMarkerScale(level: Incident['severity']): number {
+  switch (level) {
+    case 'severe':
+      return 13
+    case 'high':
+      return 12
+    case 'elevated':
+      return 11
+    case 'guarded':
+      return 10
+    default:
+      return 9
   }
 }
 
@@ -68,10 +144,13 @@ function escapeHtml(value: string): string {
 }
 
 function zoneInfoHtml(zone: ZoneRisk): string {
+  const hazardType = zoneHazardType(zone)
+
   return `
     <div style="min-width:220px;font-family:Space Grotesk, sans-serif;color:#132438">
       <strong style="display:block;font-size:16px;margin-bottom:6px;">${escapeHtml(zone.name)}</strong>
       <div style="color:#5e7384;font-size:13px;margin-bottom:8px;">${escapeHtml(zone.neighborhood)}</div>
+      <div style="font-size:13px;font-weight:700;color:${hazardColor(hazardType)};margin-bottom:6px;">Main concern: ${escapeHtml(hazardLabel(hazardType))}</div>
       <div style="font-size:13px;font-weight:700;color:${threatColor(zone.threatLevel)};margin-bottom:8px;">Watch level: ${escapeHtml(formatThreatLabel(zone.threatLevel))}</div>
       <div style="font-size:14px;line-height:1.45;">${escapeHtml(zone.reason)}</div>
     </div>
@@ -135,6 +214,15 @@ const MAP_STYLES: google.maps.MapTypeStyle[] = [
     stylers: [{ color: '#63798a' }],
   },
   {
+    featureType: 'poi',
+    elementType: 'labels.icon',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi.business',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
     featureType: 'road',
     elementType: 'geometry',
     stylers: [{ color: '#ffffff' }],
@@ -148,6 +236,10 @@ const MAP_STYLES: google.maps.MapTypeStyle[] = [
     featureType: 'water',
     elementType: 'geometry',
     stylers: [{ color: '#9fd7dd' }],
+  },
+  {
+    featureType: 'transit',
+    stylers: [{ visibility: 'off' }],
   },
 ]
 
@@ -192,15 +284,16 @@ export function IntelMap({ center, incidents, zones }: IntelMapProps) {
         infoWindow = new InfoWindow()
 
         zones.forEach((zone) => {
+          const hazardType = zoneHazardType(zone)
           const circle = new Circle({
             map,
             center: { lat: zone.lat, lng: zone.lon },
-            radius: 1100 + zone.score * 1600,
+            radius: 920 + zone.score * 1450,
             strokeColor: threatColor(zone.threatLevel),
             strokeOpacity: 0.95,
-            strokeWeight: 1.5,
+            strokeWeight: 2,
             fillColor: threatColor(zone.threatLevel),
-            fillOpacity: 0.12,
+            fillOpacity: 0.1,
           })
 
           circle.addListener('click', (event: google.maps.MapMouseEvent) => {
@@ -210,20 +303,58 @@ export function IntelMap({ center, incidents, zones }: IntelMapProps) {
           })
 
           circles.push(circle)
+
+          const zoneMarker = new Marker({
+            map,
+            position: { lat: zone.lat, lng: zone.lon },
+            title: `${zone.name} (${hazardLabel(hazardType)})`,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 12,
+              fillColor: '#ffffff',
+              fillOpacity: 0.94,
+              strokeColor: hazardColor(hazardType),
+              strokeWeight: 3,
+            },
+            label: {
+              text: hazardShortLabel(hazardType),
+              color: hazardColor(hazardType),
+              fontSize: '11px',
+              fontWeight: '700',
+            },
+            zIndex: 1,
+          })
+
+          zoneMarker.addListener('click', () => {
+            infoWindow?.setContent(zoneInfoHtml(zone))
+            infoWindow?.open({
+              anchor: zoneMarker,
+              map,
+            })
+          })
+
+          markers.push(zoneMarker)
         })
 
         incidents.forEach((incident) => {
+          const incidentHazardType = incident.category
           const incidentMarker = new Marker({
             map,
             position: { lat: incident.lat, lng: incident.lon },
             title: incident.title,
             icon: {
               path: google.maps.SymbolPath.CIRCLE,
-              scale: 9,
-              fillColor: threatColor(incident.severity),
+              scale: severityMarkerScale(incident.severity),
+              fillColor: hazardColor(incidentHazardType),
               fillOpacity: 0.97,
-              strokeColor: '#132438',
-              strokeWeight: 2,
+              strokeColor: threatColor(incident.severity),
+              strokeWeight: 3,
+            },
+            label: {
+              text: hazardShortLabel(incidentHazardType),
+              color: hazardLabelColor(incidentHazardType),
+              fontSize: '11px',
+              fontWeight: '700',
             },
             zIndex: 2,
           })

@@ -1628,6 +1628,84 @@ button.hero-secondary-link {
   gap: 1rem;
 }
 
+.map-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.map-hazard-card {
+  inline-size: 100%;
+  padding: 1rem;
+  display: grid;
+  gap: 0.55rem;
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 24px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  background:
+    radial-gradient(circle at top right, rgba(64, 184, 162, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.05);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.map-hazard-card:hover,
+.map-hazard-card.active {
+  transform: translateY(-2px);
+  border-color: rgba(22, 137, 140, 0.18);
+  box-shadow: 0 24px 44px rgba(15, 23, 42, 0.08);
+}
+
+.map-hazard-card.active {
+  background:
+    radial-gradient(circle at top right, rgba(64, 184, 162, 0.2), transparent 34%),
+    rgba(255, 255, 255, 0.9);
+}
+
+.map-hazard-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.map-hazard-icon {
+  inline-size: 2.4rem;
+  block-size: 2.4rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 16px;
+}
+
+.map-hazard-icon-flood {
+  color: #0e6460;
+  background: rgba(21, 154, 150, 0.18);
+}
+
+.map-hazard-icon-weather {
+  color: #7a5600;
+  background: rgba(216, 161, 38, 0.2);
+}
+
+.map-hazard-icon-storm {
+  color: #483fba;
+  background: rgba(109, 94, 252, 0.16);
+}
+
+.map-hazard-card strong {
+  color: var(--slate-strong);
+  font-size: 1rem;
+}
+
+.map-hazard-card p,
+.map-hazard-card small {
+  color: var(--slate-soft);
+}
+
 .legend-strip {
   display: flex;
   flex-wrap: wrap;
@@ -1640,6 +1718,10 @@ button.hero-secondary-link {
   display: grid;
   gap: 0.9rem;
   margin-bottom: 0.15rem;
+}
+
+.legend-strip-type {
+  font-size: 0.76rem;
 }
 
 .map-explainer {
@@ -1666,6 +1748,30 @@ button.hero-secondary-link {
   align-items: center;
 }
 
+.legend-badge {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  font: 700 0.7rem/1 var(--font-mono);
+}
+
+.legend-badge-flood {
+  color: #ffffff;
+  background: #159a96;
+}
+
+.legend-badge-weather {
+  color: #523f00;
+  background: #d8a126;
+}
+
+.legend-badge-storm {
+  color: #ffffff;
+  background: #6d5efc;
+}
+
 .legend-swatch {
   inline-size: 0.72rem;
   block-size: 0.72rem;
@@ -1680,6 +1786,12 @@ button.hero-secondary-link {
 
 .legend-incident {
   background: #132438;
+}
+
+.map-focus-note {
+  margin: 0;
+  color: var(--slate-soft);
+  font-size: 0.95rem;
 }
 
 .legend-low {
@@ -1738,6 +1850,36 @@ button.hero-secondary-link {
 .station-card-top > div {
   display: grid;
   gap: 0.18rem;
+}
+
+.zone-chip-stack {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.hazard-type-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.48rem 0.72rem;
+  border-radius: 999px;
+  font: 600 0.7rem/1 var(--font-mono);
+}
+
+.hazard-type-flood {
+  color: #0e6460;
+  background: rgba(21, 154, 150, 0.15);
+}
+
+.hazard-type-weather {
+  color: #7a5600;
+  background: rgba(216, 161, 38, 0.18);
+}
+
+.hazard-type-storm {
+  color: #483fba;
+  background: rgba(109, 94, 252, 0.14);
 }
 
 .station-card-modern p {
@@ -1879,6 +2021,7 @@ button.hero-secondary-link {
   .takeaway-list-inline,
   .hero-summary-grid,
   .overview-pulse-row,
+  .map-signal-grid,
   .reports-summary-grid,
   .report-feed-grid,
   .module-grid,
@@ -1929,6 +2072,7 @@ button.hero-secondary-link {
   .hero-summary-grid,
   .priority-zone-grid,
   .takeaway-list-inline,
+  .map-signal-grid,
   .overview-pulse-row,
   .reports-summary-grid,
   .report-feed-grid,

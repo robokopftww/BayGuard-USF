@@ -28,6 +28,8 @@ import SmsPage from './pages/SmsPage'
 import './App.css'
 import type { CommunityReportsState, IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types'
 
+type MapHazard = 'all' | 'flood' | 'weather' | 'storm'
+
 function App() {
   const location = useLocation()
   const [snapshot, setSnapshot] = useState<IntelSnapshot | null>(null)
@@ -93,7 +95,7 @@ function App() {
   const alerts = weather?.alerts ?? []
   const incidents = snapshot?.incidents ?? []
   const zones = snapshot?.zones ?? []
-  const activePage = pageMeta[location.pathname] ?? pageMeta['/']
+  const activePage = pageMeta[location.pathname] ?? pageMeta['/map']
   const liveContextLabel = snapshot ? scenarioLabel(scenario) : 'Connecting'
 
   return (
@@ -117,7 +119,7 @@ function App() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end
               className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
             >
               <item.icon size={18} />
@@ -198,8 +200,9 @@ function App() {
         {error ? <div className="alert-banner">{error}</div> : null}
 
         <Routes>
+          <Route path="/" element={<Navigate to="/map" replace />} />
           <Route
-            path="/"
+            path="/overview"
             element={
               <OverviewPage
                 coastal={coastal}
@@ -251,7 +254,7 @@ function App() {
           />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/sms" element={<SmsPage activeScenario={scenario} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/map" replace />} />
         </Routes>
 
         {isLoading ? <div className="loading-line" aria-hidden="true" /> : null}
@@ -976,7 +979,55 @@ function tideStatusLabel(maxPredictedFtNext24h: number): 'High' | 'Low' {
 }
 
 function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
-  const topZones = [...zones].sort((left, right) => right.score - left.score).slice(0, 4)
+  const [mapFilter, setMapFilter] = useState<MapHazard>('all')
+  const watchedZones = zones.filter((zone) => zone.threatLevel !== 'low')
+  const filteredZones = watchedZones.filter((zone) =>
+    mapFilter === 'all' ? true : zoneHazardType(zone) === mapFilter,
+  )
+  const filteredIncidents = incidents.filter((incident) =>
+    mapFilter === 'all' ? true : incident.category === mapFilter,
+  )
+  const topZones = [...filteredZones].sort((left, right) => right.score - left.score).slice(0, 4)
+  const tropicalSystemCount = snapshot?.signals.tropical.activeSystems.length ?? 0
+  const hazardCards = [
+    {
+      type: 'flood' as const,
+      icon: <Waves size={16} />,
+      note: 'Tides, low roads, and drainage pressure',
+    },
+    {
+      type: 'weather' as const,
+      icon: <CircleAlert size={16} />,
+      note: 'Rain, lightning, and weather changes',
+    },
+    {
+      type: 'storm' as const,
+      icon: <Wind size={16} />,
+      note:
+        tropicalSystemCount > 0
+          ? `${tropicalSystemCount} tropical system${tropicalSystemCount === 1 ? '' : 's'} in view`
+          : 'Wind and tropical risk',
+    },
+  ].map((card) => {
+    const matchingZones = watchedZones.filter((zone) => zoneHazardType(zone) === card.type)
+    const matchingIncidents = incidents.filter((incident) => incident.category === card.type)
+    const level = highestThreat([
+      ...matchingZones.map((zone) => zone.threatLevel),
+      ...matchingIncidents.map((incident) => incident.severity),
+    ])
+
+    return {
+      ...card,
+      level,
+      areaCount: matchingZones.length,
+      incidentCount: matchingIncidents.length,
+    }
+  })
+
+  const focusSummary =
+    mapFilter === 'all'
+      ? `Showing ${formatCount(filteredZones.length, 'watched area')} and ${formatCount(filteredIncidents.length, 'active issue')}. Low-risk areas are hidden to keep the map clear.`
+      : `Showing ${hazardLabel(mapFilter).toLowerCase()} only: ${formatCount(filteredZones.length, 'watched area')} and ${formatCount(filteredIncidents.length, 'active issue')}.`
 
   return (
     <div className="page-grid page-grid-map">
@@ -988,15 +1039,42 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
           </div>
         </div>
 
+        <div className="map-signal-grid">
+          {hazardCards.map((card) => (
+            <button
+              key={card.type}
+              type="button"
+              className={`map-hazard-card${mapFilter === card.type ? ' active' : ''}`}
+              onClick={() => setMapFilter((current) => (current === card.type ? 'all' : card.type))}
+            >
+              <div className="map-hazard-top">
+                <div className={`map-hazard-icon map-hazard-icon-${card.type}`}>{card.icon}</div>
+                <span className={`severity-chip ${severityClass(card.level)}`}>{formatThreat(card.level)}</span>
+              </div>
+              <strong>{hazardLabel(card.type)}</strong>
+              <p>{card.note}</p>
+              <small>
+                {formatCount(card.areaCount, 'watched area')} · {formatCount(card.incidentCount, 'active issue')}
+              </small>
+            </button>
+          ))}
+        </div>
+
         <div className="map-key">
           <div className="map-explainer">
             <span className="map-explainer-pill">
-              <i className="legend-swatch legend-zone" /> Circles show watched areas
+              <i className="legend-swatch legend-zone" /> Outlined circles = watched areas
             </span>
             <span className="map-explainer-pill">
-              <i className="legend-swatch legend-incident" /> Dots mark active issues
+              <i className="legend-swatch legend-incident" /> Filled dots = active issues
             </span>
             <span className="map-explainer-pill">Bigger circles need more attention</span>
+          </div>
+
+          <div className="legend-strip legend-strip-type">
+            <span><i className="legend-badge legend-badge-flood">F</i> Flood</span>
+            <span><i className="legend-badge legend-badge-weather">W</i> Weather</span>
+            <span><i className="legend-badge legend-badge-storm">S</i> Storm / hurricane</span>
           </div>
 
           <div className="legend-strip legend-strip-threat">
@@ -1008,12 +1086,14 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
           </div>
         </div>
 
+        <p className="map-focus-note">{focusSummary}</p>
+
         <div className="map-panel">
           {snapshot ? (
             <IntelMap
               center={[snapshot.location.lat, snapshot.location.lon]}
-              incidents={incidents}
-              zones={zones}
+              incidents={filteredIncidents}
+              zones={filteredZones}
             />
           ) : (
             <div className="map-loading">Loading Tampa map layers...</div>
@@ -1066,18 +1146,32 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
         </div>
 
         <div className="priority-zone-grid">
-          {topZones.map((zone) => (
-            <article key={zone.id} className="zone-spotlight">
-              <div className="zone-row-top">
-                <strong>{zone.name}</strong>
-                <span className={`severity-chip ${severityClass(zone.threatLevel)}`}>
-                  {formatThreat(zone.threatLevel)}
-                </span>
-              </div>
-              <p>{zone.neighborhood}</p>
-              <small>{zone.reason}</small>
-            </article>
-          ))}
+          {topZones.length ? (
+            topZones.map((zone) => (
+              <article key={zone.id} className="zone-spotlight">
+                <div className="zone-row-top">
+                  <div>
+                    <strong>{zone.name}</strong>
+                    <p>{zone.neighborhood}</p>
+                  </div>
+                  <div className="zone-chip-stack">
+                    <span className={`hazard-type-pill hazard-type-${zoneHazardType(zone)}`}>
+                      {hazardLabel(zoneHazardType(zone), true)}
+                    </span>
+                    <span className={`severity-chip ${severityClass(zone.threatLevel)}`}>
+                      {formatThreat(zone.threatLevel)}
+                    </span>
+                  </div>
+                </div>
+                <small>{zone.reason}</small>
+              </article>
+            ))
+          ) : (
+            <EmptyBlock
+              title="No watched areas in this view"
+              body="Try another map filter to see a different set of watched areas."
+            />
+          )}
         </div>
       </section>
     </div>
@@ -1258,6 +1352,39 @@ function formatThreat(level: ThreatLevel): string {
   return level.charAt(0).toUpperCase() + level.slice(1)
 }
 
+function zoneHazardType(zone: IntelSnapshot['zones'][number]): Exclude<MapHazard, 'all'> {
+  const reason = zone.reason.toLowerCase()
+
+  if (zone.kind === 'coastal' || zone.kind === 'river') {
+    return 'flood'
+  }
+
+  if (zone.kind === 'evacuation') {
+    return 'storm'
+  }
+
+  if (/(flood|tide|coastal|shore|shoreline|waterfront|bayfront|surge|seawall|drain|pond|low-lying|creek|river|water level)/.test(reason)) {
+    return 'flood'
+  }
+
+  if (/(hurricane|tropical|storm|wind|gust|evacuat|cyclone|squall)/.test(reason)) {
+    return 'storm'
+  }
+
+  return 'weather'
+}
+
+function hazardLabel(type: Exclude<MapHazard, 'all'>, compact = false): string {
+  switch (type) {
+    case 'flood':
+      return 'Flood'
+    case 'storm':
+      return compact ? 'Storm' : 'Storm / hurricane'
+    default:
+      return 'Weather'
+  }
+}
+
 function formatTimestamp(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
     month: 'short',
@@ -1281,6 +1408,16 @@ function formatCount(value: number, label: string): string {
 
 function threatRank(level: ThreatLevel): number {
   return ['low', 'guarded', 'elevated', 'high', 'severe'].indexOf(level)
+}
+
+function highestThreat(levels: ThreatLevel[]): ThreatLevel {
+  if (!levels.length) {
+    return 'low'
+  }
+
+  return levels.reduce<ThreatLevel>((currentHighest, level) =>
+    threatRank(level) > threatRank(currentHighest) ? level : currentHighest,
+  'low')
 }
 
 function friendlyThreatLabel(level: ThreatLevel): string {
@@ -1382,7 +1519,7 @@ const scenarioOptions: Array<{ value: SimulationScenario; label: string }> = [
 
 const navItems = [
   { to: '/map', label: 'Map', caption: 'Neighborhood view', icon: Map },
-  { to: '/', label: 'Overview', caption: 'Citywide update', icon: Compass },
+  { to: '/overview', label: 'Overview', caption: 'Citywide update', icon: Compass },
   { to: '/reports', label: 'Reports', caption: 'Resident updates', icon: MessageSquareWarning },
   { to: '/alerts', label: 'Alerts', caption: 'Incidents and notices', icon: BellRing },
   { to: '/sms', label: 'SMS', caption: 'Text alerts', icon: Smartphone },
@@ -1390,7 +1527,7 @@ const navItems = [
 ]
 
 const pageMeta: Record<string, { kicker: string; title: string; description: string }> = {
-  '/': {
+  '/overview': {
     kicker: 'Overview',
     title: 'Live Tampa flood and storm updates.',
     description:
