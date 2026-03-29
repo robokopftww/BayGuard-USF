@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { readKvJson, resolveStoreBackend, writeKvJson } from '../store/kv.js'
 import type { CommunityReport, CommunityReportsState, ZoneReference } from '../../shared/types.js'
 
 export interface CommunityReportStoreData {
@@ -21,6 +22,7 @@ interface CommunityReportsRuntime {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const storeFilePath = path.resolve(__dirname, '../../data/community-reports.json')
+const storeKey = 'bayguard:community-reports'
 
 let storeQueue = Promise.resolve()
 let memoryStore = createEmptyStore()
@@ -32,17 +34,19 @@ function createEmptyStore(): CommunityReportStoreData {
   }
 }
 
-function shouldUseMemoryStore(): boolean {
-  return process.env.BAYGUARD_STORE_MODE === 'memory' || process.env.VERCEL === '1'
-}
-
 async function ensureStoreDirectory(): Promise<void> {
   await mkdir(path.dirname(storeFilePath), { recursive: true })
 }
 
 async function readStoreFile(): Promise<CommunityReportStoreData> {
-  if (shouldUseMemoryStore()) {
+  const backend = resolveStoreBackend()
+
+  if (backend === 'memory') {
     return structuredClone(memoryStore)
+  }
+
+  if (backend === 'kv') {
+    return readKvJson<CommunityReportStoreData>(storeKey, createEmptyStore)
   }
 
   try {
@@ -64,8 +68,15 @@ async function readStoreFile(): Promise<CommunityReportStoreData> {
 }
 
 async function writeStoreFile(store: CommunityReportStoreData): Promise<void> {
-  if (shouldUseMemoryStore()) {
+  const backend = resolveStoreBackend()
+
+  if (backend === 'memory') {
     memoryStore = structuredClone(store)
+    return
+  }
+
+  if (backend === 'kv') {
+    await writeKvJson(storeKey, store)
     return
   }
 

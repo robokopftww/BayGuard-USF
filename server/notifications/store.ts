@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { readKvJson, resolveStoreBackend, writeKvJson } from '../store/kv.js'
 import type {
   SmsAlertType,
   SmsCenterState,
@@ -48,6 +49,7 @@ interface SmsRuntimeSummary {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const storeFilePath = path.resolve(__dirname, '../../data/sms-store.json')
+const storeKey = 'bayguard:sms-store'
 
 let storeQueue = Promise.resolve()
 let memoryStore = createEmptyStore()
@@ -62,10 +64,6 @@ function createEmptyStore(): NotificationStoreData {
 
 async function ensureStoreDirectory(): Promise<void> {
   await mkdir(path.dirname(storeFilePath), { recursive: true })
-}
-
-function shouldUseMemoryStore(): boolean {
-  return process.env.BAYGUARD_STORE_MODE === 'memory' || process.env.VERCEL === '1'
 }
 
 export function normalizeAlertTypes(alertTypes: SmsAlertType[]): SmsAlertType[] {
@@ -100,8 +98,14 @@ export function maskPhoneNumber(phone: string): string {
 }
 
 async function readStoreFile(): Promise<NotificationStoreData> {
-  if (shouldUseMemoryStore()) {
+  const backend = resolveStoreBackend()
+
+  if (backend === 'memory') {
     return structuredClone(memoryStore)
+  }
+
+  if (backend === 'kv') {
+    return readKvJson<NotificationStoreData>(storeKey, createEmptyStore)
   }
 
   try {
@@ -124,8 +128,15 @@ async function readStoreFile(): Promise<NotificationStoreData> {
 }
 
 async function writeStoreFile(store: NotificationStoreData): Promise<void> {
-  if (shouldUseMemoryStore()) {
+  const backend = resolveStoreBackend()
+
+  if (backend === 'memory') {
     memoryStore = structuredClone(store)
+    return
+  }
+
+  if (backend === 'kv') {
+    await writeKvJson(storeKey, store)
     return
   }
 

@@ -79,6 +79,7 @@ The dashboard will still run without `GEMINI_API_KEY`, but the final judge will 
 The Tampa map will show a setup message until `VITE_GOOGLE_MAPS_API_KEY` is present.
 SMS runs in local dry-run mode until you explicitly switch `SMS_PROVIDER=twilio` or `SMS_PROVIDER=textbelt` and set `SMS_SENDING_ENABLED=1`.
 Local development uses `BAYGUARD_STORE_MODE=file` so the SMS roster persists in `data/sms-store.json`.
+If you want the same persistence on Vercel, add Redis/KV env vars and BayGuard will use them automatically.
 
 4. Run the app in development:
 
@@ -193,19 +194,24 @@ SMS_TRIGGER_LEVEL=high
 TWILIO_ACCOUNT_SID=...
 TWILIO_AUTH_TOKEN=...
 TWILIO_MESSAGING_SERVICE_SID=...
+KV_REST_API_URL=...
+KV_REST_API_TOKEN=...
+REDIS_URL=...
 ```
 
 ### Important SMS note on Vercel
 
-Because Vercel Functions are serverless, BayGuard automatically uses an in-memory SMS store there instead of writing to `data/sms-store.json`.
+Because Vercel Functions are serverless, BayGuard cannot rely on local files there.
 
-That means:
+If Vercel KV is configured, BayGuard stores both SMS state and community reports in KV automatically.
+
+If KV is not configured, BayGuard falls back to an in-memory store. That means:
 
 - the app deploys cleanly on Vercel
 - manual SMS dispatch drills work
-- subscriber and dispatch history are not durable across cold starts
+- subscriber, dispatch, and report history are not durable across cold starts
 
-For a real production rollout on Vercel, move subscriber storage to a database or hosted KV store.
+BayGuard supports either Vercel KV env names (`KV_REST_API_URL`, `KV_REST_API_TOKEN`), the raw Upstash REST names (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`), or a standard `REDIS_URL` from the Redis integration.
 
 ### SMS evaluation on Vercel
 
