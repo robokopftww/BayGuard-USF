@@ -131,8 +131,12 @@ export async function readKvJson<T>(key: string, fallbackFactory: () => T): Prom
     return fallbackFactory()
   }
 
+  const rawValue = raw as string | Uint8Array
+  const rawText =
+    typeof rawValue === 'string' ? rawValue : Buffer.from(rawValue).toString('utf8')
+
   try {
-    return JSON.parse(raw) as T
+    return JSON.parse(rawText) as T
   } catch {
     return fallbackFactory()
   }
