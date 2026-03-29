@@ -836,6 +836,13 @@ button.hero-secondary-link {
   align-items: start;
 }
 
+.subscriber-row-actions,
+.dispatch-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .subscriber-row-top span,
 .dispatch-row-top span,
 .subscriber-row p,

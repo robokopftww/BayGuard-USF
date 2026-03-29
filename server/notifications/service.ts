@@ -15,6 +15,8 @@ import { getSmsRuntimeConfig, sendSmsMessage } from './sender.js'
 import {
   buildSmsCenterState,
   deactivateSubscriber,
+  removeDispatch,
+  removeSubscriber,
   readNotificationStore,
   saveSubscriber,
   updateNotificationStore,
@@ -176,6 +178,26 @@ export async function unsubscribeFromSms(id: string): Promise<SmsCenterState> {
 
   if (!subscriber) {
     throw new Error('Subscriber not found.')
+  }
+
+  return getSmsCenterState()
+}
+
+export async function removeSubscriberFromSms(id: string): Promise<SmsCenterState> {
+  const subscriber = await removeSubscriber(id)
+
+  if (!subscriber) {
+    throw new Error('Subscriber not found.')
+  }
+
+  return getSmsCenterState()
+}
+
+export async function removeDispatchFromSms(id: string): Promise<SmsCenterState> {
+  const dispatch = await removeDispatch(id)
+
+  if (!dispatch) {
+    throw new Error('Text alert not found.')
   }
 
   return getSmsCenterState()

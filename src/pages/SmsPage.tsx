@@ -4,6 +4,7 @@ import {
   Send,
   ShieldCheck,
   Smartphone,
+  X,
   UserRoundPlus,
   Users,
 } from 'lucide-react'
@@ -45,6 +46,8 @@ function SmsPage({ activeScenario }: SmsPageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDispatching, setIsDispatching] = useState(false)
+  const [pendingSubscriberActionId, setPendingSubscriberActionId] = useState<string | null>(null)
+  const [pendingDispatchRemovalId, setPendingDispatchRemovalId] = useState<string | null>(null)
   const [notice, setNotice] = useState<NoticeState | null>(null)
   const [dispatchScenario, setDispatchScenario] = useState<SimulationScenario>(activeScenario)
   const [form, setForm] = useState({
@@ -133,6 +136,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
   }
 
   const handleUnsubscribe = async (subscriberId: string) => {
+    setPendingSubscriberActionId(subscriberId)
     setNotice(null)
 
     try {
@@ -175,6 +179,67 @@ function SmsPage({ activeScenario }: SmsPageProps) {
         tone: 'error',
         message: error instanceof Error ? error.message : 'Unable to unsubscribe right now.',
       })
+    } finally {
+      setPendingSubscriberActionId(null)
+    }
+  }
+
+  const handleRemoveSubscriber = async (subscriberId: string) => {
+    setPendingSubscriberActionId(subscriberId)
+    setNotice(null)
+
+    try {
+      const response = await fetch(`/api/sms/subscribers?id=${encodeURIComponent(subscriberId)}`, {
+        method: 'DELETE',
+      })
+
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.message ?? 'Unable to remove this subscriber.')
+      }
+
+      setCenterState(payload as SmsCenterState)
+      setNotice({
+        tone: 'success',
+        message: 'Subscriber removed from BayGuard text alerts.',
+      })
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Unable to remove this subscriber.',
+      })
+    } finally {
+      setPendingSubscriberActionId(null)
+    }
+  }
+
+  const handleRemoveDispatch = async (dispatchId: string) => {
+    setPendingDispatchRemovalId(dispatchId)
+    setNotice(null)
+
+    try {
+      const response = await fetch(`/api/sms/dispatches?id=${encodeURIComponent(dispatchId)}`, {
+        method: 'DELETE',
+      })
+
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.message ?? 'Unable to remove this text alert.')
+      }
+
+      setCenterState(payload as SmsCenterState)
+      setNotice({
+        tone: 'success',
+        message: 'Text alert removed from history.',
+      })
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Unable to remove this text alert.',
+      })
+    }
+    finally {
+      setPendingDispatchRemovalId(null)
     }
   }
 
@@ -421,13 +486,25 @@ function SmsPage({ activeScenario }: SmsPageProps) {
                     <strong>{subscriber.name}</strong>
                     <span>{subscriber.phoneMasked}</span>
                   </div>
-                  <span
-                    className={`status-tag ${
-                      subscriber.isActive ? 'status-watch' : 'status-nominal'
-                    }`}
-                  >
-                    {subscriber.isActive ? 'active' : 'paused'}
-                  </span>
+                  <div className="subscriber-row-actions">
+                    <span
+                      className={`status-tag ${
+                        subscriber.isActive ? 'status-watch' : 'status-nominal'
+                      }`}
+                    >
+                      {subscriber.isActive ? 'active' : 'paused'}
+                    </span>
+                    <button
+                      type="button"
+                      className="report-remove-action"
+                      onClick={() => void handleRemoveSubscriber(subscriber.id)}
+                      disabled={pendingSubscriberActionId === subscriber.id}
+                      aria-label="Remove subscriber"
+                      title="Remove subscriber"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
                 <p>
                   Sends at {formatThreat(subscriber.minThreatLevel)} and above for{' '}
@@ -443,6 +520,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
                       type="button"
                       className="ghost-action"
                       onClick={() => void handleUnsubscribe(subscriber.id)}
+                      disabled={pendingSubscriberActionId === subscriber.id}
                     >
                       Unsubscribe
                     </button>
@@ -485,9 +563,21 @@ function SmsPage({ activeScenario }: SmsPageProps) {
                         : `${formatScenario(dispatch.scenario)} practice run`}
                     </span>
                   </div>
-                  <span className={`severity-chip severity-${dispatch.threatLevel}`}>
-                    {formatThreat(dispatch.threatLevel)}
-                  </span>
+                  <div className="dispatch-row-actions">
+                    <span className={`severity-chip severity-${dispatch.threatLevel}`}>
+                      {formatThreat(dispatch.threatLevel)}
+                    </span>
+                    <button
+                      type="button"
+                      className="report-remove-action"
+                      onClick={() => void handleRemoveDispatch(dispatch.id)}
+                      disabled={pendingDispatchRemovalId === dispatch.id}
+                      aria-label="Remove text alert from history"
+                      title="Remove text alert from history"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
                 <p>{dispatch.reason}</p>
                 <small>

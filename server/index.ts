@@ -10,6 +10,8 @@ import {
   createCommunityReportPayload,
   createSmsSubscriberPayload,
   deleteCommunityReportPayload,
+  deleteSmsDispatchPayload,
+  deleteSmsSubscriberPayload,
   dispatchSmsPayload,
   evacuatePayload,
   evaluateSmsPayload,
@@ -132,6 +134,21 @@ app.post('/api/sms/subscribers', async (request, response) => {
   }
 })
 
+app.delete('/api/sms/subscribers', async (request, response) => {
+  try {
+    response.json(
+      await deleteSmsSubscriberPayload({
+        id: typeof request.query.id === 'string' ? request.query.id : undefined,
+      }),
+    )
+  } catch (error) {
+    const status = error instanceof ApiError ? error.status : 404
+    response.status(status).json(
+      error instanceof ApiError ? error.payload : { message: 'Subscriber not found.' },
+    )
+  }
+})
+
 app.post('/api/sms/subscribers/:id/unsubscribe', async (request, response) => {
   try {
     response.json(await unsubscribeSmsSubscriberPayload(request.params.id))
@@ -162,6 +179,21 @@ app.post('/api/sms/dispatch', async (request, response) => {
       message: 'Unable to dispatch BayGuard SMS alerts right now.',
       details: error instanceof Error ? error.message : 'Unknown server error',
     })
+  }
+})
+
+app.delete('/api/sms/dispatches', async (request, response) => {
+  try {
+    response.json(
+      await deleteSmsDispatchPayload({
+        id: typeof request.query.id === 'string' ? request.query.id : undefined,
+      }),
+    )
+  } catch (error) {
+    const status = error instanceof ApiError ? error.status : 404
+    response.status(status).json(
+      error instanceof ApiError ? error.payload : { message: 'Text alert not found.' },
+    )
   }
 })
 

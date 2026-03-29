@@ -212,6 +212,30 @@ export async function deactivateSubscriber(id: string): Promise<StoredSubscriber
   })
 }
 
+export async function removeSubscriber(id: string): Promise<StoredSubscriber | null> {
+  return updateNotificationStore((store) => {
+    const index = store.subscribers.findIndex((item) => item.id === id)
+    if (index === -1) {
+      return null
+    }
+
+    const [subscriber] = store.subscribers.splice(index, 1)
+    return subscriber ?? null
+  })
+}
+
+export async function removeDispatch(id: string): Promise<StoredDispatch | null> {
+  return updateNotificationStore((store) => {
+    const index = store.dispatches.findIndex((item) => item.id === id)
+    if (index === -1) {
+      return null
+    }
+
+    const [dispatch] = store.dispatches.splice(index, 1)
+    return dispatch ?? null
+  })
+}
+
 export function buildSmsCenterState(
   store: NotificationStoreData,
   runtime: SmsRuntimeSummary,

@@ -4,6 +4,8 @@ import { createIntelSnapshot } from './orchestrator.js'
 import {
   dispatchSmsForScenario,
   getSmsCenterState,
+  removeDispatchFromSms,
+  removeSubscriberFromSms,
   runAutomaticSmsEvaluation,
   subscribeToSms,
   unsubscribeFromSms,
@@ -141,6 +143,34 @@ export async function unsubscribeSmsSubscriberPayload(id: unknown) {
   } catch (error) {
     throw new ApiError(404, {
       message: error instanceof Error ? error.message : 'Subscriber not found.',
+    })
+  }
+}
+
+export async function deleteSmsSubscriberPayload(input: { id?: unknown }) {
+  if (typeof input.id !== 'string' || !input.id.trim()) {
+    throw new ApiError(400, { message: 'Subscriber id is required.' })
+  }
+
+  try {
+    return await removeSubscriberFromSms(input.id)
+  } catch (error) {
+    throw new ApiError(404, {
+      message: error instanceof Error ? error.message : 'Subscriber not found.',
+    })
+  }
+}
+
+export async function deleteSmsDispatchPayload(input: { id?: unknown }) {
+  if (typeof input.id !== 'string' || !input.id.trim()) {
+    throw new ApiError(400, { message: 'Text alert id is required.' })
+  }
+
+  try {
+    return await removeDispatchFromSms(input.id)
+  } catch (error) {
+    throw new ApiError(404, {
+      message: error instanceof Error ? error.message : 'Text alert not found.',
     })
   }
 }
