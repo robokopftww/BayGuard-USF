@@ -20,13 +20,19 @@ import {
   Wind,
 } from 'lucide-react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { startTransition, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { startTransition, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { IntelMap } from './components/IntelMap'
 import ReportsPage from './pages/ReportsPage'
 import SmsPage from './pages/SmsPage'
 import './App.css'
-import type { CommunityReportsState, IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types'
+import type {
+  CommunityReportsState,
+  EvacuationPlan,
+  IntelSnapshot,
+  SimulationScenario,
+  ThreatLevel,
+} from '../shared/types'
 
 type MapHazard = 'all' | 'flood' | 'weather' | 'storm'
 
@@ -980,6 +986,11 @@ function tideStatusLabel(maxPredictedFtNext24h: number): 'High' | 'Low' {
 
 function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
   const [mapFilter, setMapFilter] = useState<MapHazard>('all')
+  const [addressInput, setAddressInput] = useState('')
+  const [stormCategory, setStormCategory] = useState(1)
+  const [isCheckingAddress, setIsCheckingAddress] = useState(false)
+  const [addressCheck, setAddressCheck] = useState<EvacuationPlan | null>(null)
+  const [addressCheckError, setAddressCheckError] = useState<string | null>(null)
   const watchedZones = zones.filter((zone) => zone.threatLevel !== 'low')
   const filteredZones = watchedZones.filter((zone) =>
     mapFilter === 'all' ? true : zoneHazardType(zone) === mapFilter,
@@ -1028,6 +1039,43 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
     mapFilter === 'all'
       ? `Showing ${formatCount(filteredZones.length, 'watched area')} and ${formatCount(filteredIncidents.length, 'active issue')}. Low-risk areas are hidden to keep the map clear.`
       : `Showing ${hazardLabel(mapFilter).toLowerCase()} only: ${formatCount(filteredZones.length, 'watched area')} and ${formatCount(filteredIncidents.length, 'active issue')}.`
+
+  const handleAddressCheck = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!addressInput.trim()) {
+      setAddressCheckError('Enter a Tampa-area address to check.')
+      return
+    }
+
+    setIsCheckingAddress(true)
+    setAddressCheckError(null)
+
+    try {
+      const response = await fetch('/api/evacuate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: addressInput.trim(),
+          category: stormCategory,
+        }),
+      })
+
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'BayGuard could not check this address right now.')
+      }
+
+      setAddressCheck(payload as EvacuationPlan)
+    } catch (error) {
+      setAddressCheck(null)
+      setAddressCheckError(
+        error instanceof Error ? error.message : 'BayGuard could not check this address right now.',
+      )
+    } finally {
+      setIsCheckingAddress(false)
+    }
+  }
 
   return (
     <div className="page-grid page-grid-map">
@@ -1098,6 +1146,116 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
           ) : (
             <div className="map-loading">Loading Tampa map layers...</div>
           )}
+        </div>
+      </section>
+
+      <section className="panel-card panel-card-soft panel-span-full">
+        <div className="panel-head">
+          <div>
+            <p className="page-kicker">Address check</p>
+            <h3>Check your address</h3>
+          </div>
+          <House size={18} />
+        </div>
+
+        <div className="address-check-layout">
+          <form className="address-check-form" onSubmit={handleAddressCheck}>
+            <p className="map-focus-note">
+              Enter a Tampa-area address and choose a storm category to see whether it falls in an
+              evacuation zone and whether you should leave.
+            </p>
+
+            <label className="field">
+              <span>Address</span>
+              <input
+                value={addressInput}
+                onChange={(event) => setAddressInput(event.target.value)}
+                placeholder="For example: 401 W Kennedy Blvd, Tampa, FL"
+                required
+              />
+            </label>
+
+            <div className="field-grid">
+              <label className="field">
+                <span>Storm category</span>
+                <select
+                  value={stormCategory}
+                  onChange={(event) => setStormCategory(Number(event.target.value))}
+                >
+                  {[1, 2, 3, 4, 5].map((category) => (
+                    <option key={category} value={category}>
+                      Category {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <button type="submit" className="primary-action" disabled={isCheckingAddress}>
+              <Compass size={16} />
+              <span>{isCheckingAddress ? 'Checking address' : 'Check address'}</span>
+            </button>
+          </form>
+
+          <div className="address-check-result">
+            {addressCheck ? (
+              <>
+                <div className="address-check-result-top">
+                  <div>
+                    <p className="page-kicker">Address result</p>
+                    <h4>{evacuationHeadline(addressCheck)}</h4>
+                  </div>
+                  <div className="zone-chip-stack">
+                    <span className={`severity-chip ${evacuationSeverityClass(addressCheck)}`}>
+                      {addressCheck.mustEvacuate ? 'Evacuate' : 'Stay put'}
+                    </span>
+                    <span className="hazard-type-pill hazard-type-storm">
+                      {addressCheck.floodZone === 'Unknown'
+                        ? 'Zone not matched'
+                        : `Zone ${addressCheck.floodZone}`}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="lead-copy">{addressCheck.reason}</p>
+
+                <div className="snapshot-stat-grid snapshot-stat-grid-tight address-check-stats">
+                  <article className="snapshot-stat-card snapshot-stat-card-compact">
+                    <span>Address</span>
+                    <strong>{compactText(addressCheck.address, 46)}</strong>
+                    <small>Checked for a Category {addressCheck.category} storm.</small>
+                  </article>
+                  <article className="snapshot-stat-card snapshot-stat-card-compact">
+                    <span>Shelter</span>
+                    <strong>{addressCheck.shelter?.name ?? 'Not needed yet'}</strong>
+                    <small>{addressCheck.shelter?.address ?? 'Stay ready and keep watching updates.'}</small>
+                  </article>
+                </div>
+
+                <div className="address-check-guidance">
+                  <strong>Next steps</strong>
+                  <ul className="address-check-list">
+                    {addressCheck.steps.slice(0, 4).map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                  <small>
+                    {addressCheck.mode === 'gemini'
+                      ? 'AI-assisted evacuation check'
+                      : 'Local BayGuard fallback check'}
+                  </small>
+                </div>
+              </>
+            ) : (
+              <EmptyBlock
+                title={addressCheckError ? 'Address check unavailable' : 'No address checked yet'}
+                body={
+                  addressCheckError ??
+                  'Use this tool during hurricane conditions to see whether your address sits in an evacuation zone.'
+                }
+              />
+            )}
+          </div>
         </div>
       </section>
 
@@ -1498,6 +1656,30 @@ function waterfrontGuidance(level: ThreatLevel, peakWaterFt?: number): string {
     default:
       return `${waterNote} No major coastal concern right now.`
   }
+}
+
+function evacuationHeadline(plan: EvacuationPlan): string {
+  if (plan.mustEvacuate) {
+    return 'This address should evacuate'
+  }
+
+  if (plan.floodZone === 'Unknown') {
+    return 'BayGuard could not match a zone'
+  }
+
+  return `Zone ${plan.floodZone}, no evacuation yet`
+}
+
+function evacuationSeverityClass(plan: EvacuationPlan): string {
+  if (plan.mustEvacuate) {
+    return 'severity-high'
+  }
+
+  if (plan.floodZone === 'Unknown') {
+    return 'severity-low'
+  }
+
+  return 'severity-guarded'
 }
 
 function scenarioLabel(scenario: SimulationScenario): string {

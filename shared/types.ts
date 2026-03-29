@@ -287,6 +287,21 @@ export interface SmsDispatchResult {
   event?: SmsDispatchRecord
 }
 
+export interface EvacuationPlan {
+  address: string
+  category: number
+  floodZone: 'A' | 'B' | 'C' | 'Unknown'
+  mustEvacuate: boolean
+  reason: string
+  shelter: {
+    name: string
+    address: string
+  } | null
+  steps: string[]
+  supplies: string[]
+  mode: 'gemini' | 'fallback'
+}
+
 export interface CommunityReportVerification {
   status: CommunityVerificationStatus
   confidence: number

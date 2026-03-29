@@ -21,6 +21,7 @@ import {
 import type {
   CommunityReportInput,
   CommunityReportType,
+  EvacuationPlan,
   IntelSnapshot,
   SimulationScenario,
   SmsAlertType,
@@ -43,6 +44,71 @@ const allowedScenarios: SimulationScenario[] = ['live', 'flood', 'hurricane', 'c
 const allowedThreatLevels: ThreatLevel[] = ['low', 'guarded', 'elevated', 'high', 'severe']
 const allowedAlertTypes: SmsAlertType[] = ['general', 'flood', 'storm', 'weather']
 const cacheWindowMs = 2 * 60 * 1000
+
+const fallbackShelters = [
+  {
+    name: 'Hillsborough Community College - Dale Mabry',
+    address: '4001 W Tampa Bay Blvd, Tampa FL 33614',
+  },
+  {
+    name: 'Jefferson High School',
+    address: '4401 W Cypress St, Tampa FL 33607',
+  },
+  {
+    name: 'Freedom High School',
+    address: '7154 Forest Grove Dr, Tampa FL 33620',
+  },
+]
+
+const fallbackZoneKeywords: Array<{
+  zone: EvacuationPlan['floodZone']
+  keywords: string[]
+  shelterIndex: number
+}> = [
+  {
+    zone: 'A',
+    keywords: [
+      'davis island',
+      'davis islands',
+      'apollo beach',
+      'gandy',
+      'ballast point',
+      'harbour island',
+      'harbor island',
+      'port tampa',
+    ],
+    shelterIndex: 0,
+  },
+  {
+    zone: 'B',
+    keywords: [
+      'south tampa',
+      'palmetto beach',
+      'st petersburg',
+      'st pete',
+      'channelside',
+      'water street',
+      'rocky point',
+      'westshore',
+    ],
+    shelterIndex: 1,
+  },
+  {
+    zone: 'C',
+    keywords: [
+      'new tampa',
+      'carrollwood',
+      'temple terrace',
+      'brandon',
+      'seminole heights',
+      'town n country',
+      'town n\' country',
+      'university area',
+      'usf',
+    ],
+    shelterIndex: 2,
+  },
+]
 
 let cache: { value: IntelSnapshot; fetchedAt: number } | null = null
 
@@ -72,6 +138,86 @@ export function parseAlertTypes(value: unknown): SmsAlertType[] {
   )
 
   return filtered.length > 0 ? filtered : ['general', 'flood', 'storm', 'weather']
+}
+
+function inferFloodZoneFromAddress(address: string): EvacuationPlan['floodZone'] {
+  const normalized = address.toLowerCase()
+
+  for (const rule of fallbackZoneKeywords) {
+    if (rule.keywords.some((keyword) => normalized.includes(keyword))) {
+      return rule.zone
+    }
+  }
+
+  return 'Unknown'
+}
+
+function evacuationThresholdForZone(zone: EvacuationPlan['floodZone']): number | null {
+  switch (zone) {
+    case 'A':
+      return 1
+    case 'B':
+      return 2
+    case 'C':
+      return 3
+    default:
+      return null
+  }
+}
+
+function buildFallbackEvacuationPlan(address: string, category: number): EvacuationPlan {
+  const floodZone = inferFloodZoneFromAddress(address)
+  const threshold = evacuationThresholdForZone(floodZone)
+  const mustEvacuate = threshold !== null && category >= threshold
+  const matchingRule = fallbackZoneKeywords.find((rule) => rule.zone === floodZone)
+  const shelter = mustEvacuate && matchingRule ? fallbackShelters[matchingRule.shelterIndex] : null
+
+  const reason =
+    floodZone === 'Unknown'
+      ? 'BayGuard could not confidently match this address to a Tampa evacuation zone from the local reference list.'
+      : mustEvacuate
+        ? `This address appears to sit in Zone ${floodZone}, which should evacuate for a Category ${threshold} storm or stronger.`
+        : `This address appears to sit in Zone ${floodZone}, but that zone does not need to evacuate until a stronger storm category.`
+
+  const steps = mustEvacuate
+    ? [
+        'Leave early before roads and gas stations get busier.',
+        shelter
+          ? `Head toward ${shelter.name}.`
+          : 'Choose a local shelter or a safer inland stay with friends or family.',
+        'Bring medication, IDs, chargers, and enough clothing for two days.',
+        'Avoid shoreline roads and low underpasses on the way out.',
+      ]
+    : floodZone === 'Unknown'
+      ? [
+          'Double-check the address and nearby neighborhood name.',
+          'Watch official Hillsborough County evacuation updates if conditions worsen.',
+          'Keep a plan ready in case the storm track shifts.',
+        ]
+      : [
+          'Stay ready and keep checking official local updates.',
+          'Review your route before conditions worsen.',
+          'Prepare a small go-bag in case the storm category rises.',
+        ]
+
+  return {
+    address,
+    category,
+    floodZone,
+    mustEvacuate,
+    reason,
+    shelter: shelter ?? null,
+    steps,
+    supplies: [
+      'Phone charger',
+      'Medications',
+      'Water',
+      'Important documents',
+      'Flashlight',
+      'Change of clothes',
+    ],
+    mode: 'fallback',
+  }
 }
 
 export function getHealthPayload() {
@@ -278,7 +424,7 @@ export async function verifyPayload(body: { report?: unknown; issueType?: unknow
   }
 }
 
-export async function evacuatePayload(body: { address?: unknown; category?: unknown }) {
+export async function evacuatePayload(body: { address?: unknown; category?: unknown }): Promise<EvacuationPlan> {
   const address = typeof body.address === 'string' ? body.address.trim() : ''
   const category = typeof body.category === 'number' ? body.category : Number(body.category)
 
@@ -286,9 +432,10 @@ export async function evacuatePayload(body: { address?: unknown; category?: unkn
     throw new ApiError(400, { error: 'address and category are required' })
   }
 
+  const fallbackPlan = buildFallbackEvacuationPlan(address, category)
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    throw new ApiError(500, { error: 'Gemini API key not configured on server' })
+    return fallbackPlan
   }
 
   const prompt = [
@@ -320,12 +467,52 @@ export async function evacuatePayload(body: { address?: unknown; category?: unkn
     '}',
   ].join('\n')
 
-  const ai = new GoogleGenAI({ apiKey })
-  const geminiResponse = await ai.models.generateContent({
-    model: process.env.GEMINI_MODEL ?? 'gemini-1.5-flash',
-    contents: [{ text: prompt }],
-    config: { responseMimeType: 'application/json', temperature: 0.4 },
-  })
+  try {
+    const ai = new GoogleGenAI({ apiKey })
+    const geminiResponse = await ai.models.generateContent({
+      model: process.env.GEMINI_MODEL ?? 'gemini-1.5-flash',
+      contents: [{ text: prompt }],
+      config: { responseMimeType: 'application/json', temperature: 0.4 },
+    })
 
-  return JSON.parse(geminiResponse.text ?? '{}')
+    const parsed = JSON.parse(geminiResponse.text ?? '{}') as Partial<EvacuationPlan> & {
+      shelter?: { name?: string; address?: string } | null
+    }
+
+    return {
+      address,
+      category,
+      floodZone:
+        parsed.floodZone === 'A' || parsed.floodZone === 'B' || parsed.floodZone === 'C'
+          ? parsed.floodZone
+          : fallbackPlan.floodZone,
+      mustEvacuate:
+        typeof parsed.mustEvacuate === 'boolean' ? parsed.mustEvacuate : fallbackPlan.mustEvacuate,
+      reason:
+        typeof parsed.reason === 'string' && parsed.reason.trim()
+          ? parsed.reason.trim()
+          : fallbackPlan.reason,
+      shelter:
+        parsed.shelter &&
+        typeof parsed.shelter.name === 'string' &&
+        typeof parsed.shelter.address === 'string'
+          ? {
+              name: parsed.shelter.name,
+              address: parsed.shelter.address,
+            }
+          : fallbackPlan.shelter,
+      steps:
+        Array.isArray(parsed.steps) && parsed.steps.filter((item): item is string => typeof item === 'string').length
+          ? parsed.steps.filter((item): item is string => typeof item === 'string').slice(0, 6)
+          : fallbackPlan.steps,
+      supplies:
+        Array.isArray(parsed.supplies) &&
+        parsed.supplies.filter((item): item is string => typeof item === 'string').length
+          ? parsed.supplies.filter((item): item is string => typeof item === 'string').slice(0, 8)
+          : fallbackPlan.supplies,
+      mode: 'gemini',
+    }
+  } catch {
+    return fallbackPlan
+  }
 }
