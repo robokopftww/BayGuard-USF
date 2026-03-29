@@ -1350,8 +1350,8 @@ const scenarioOptions: Array<{ value: SimulationScenario; label: string }> = [
 ]
 
 const navItems = [
-  { to: '/', label: 'Overview', caption: 'Citywide update', icon: Compass },
   { to: '/map', label: 'Map', caption: 'Neighborhood view', icon: Map },
+  { to: '/', label: 'Overview', caption: 'Citywide update', icon: Compass },
   { to: '/reports', label: 'Reports', caption: 'Resident updates', icon: MessageSquareWarning },
   { to: '/alerts', label: 'Alerts', caption: 'Incidents and notices', icon: BellRing },
   { to: '/sms', label: 'SMS', caption: 'Text alerts', icon: Smartphone },
