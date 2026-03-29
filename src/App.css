@@ -1636,6 +1636,30 @@ button.hero-secondary-link {
   font: 600 0.8rem/1 var(--font-mono);
 }
 
+.map-key {
+  display: grid;
+  gap: 0.9rem;
+  margin-bottom: 0.15rem;
+}
+
+.map-explainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.map-explainer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.95rem;
+  border-radius: 999px;
+  color: var(--slate-soft);
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font: 600 0.76rem/1 var(--font-mono);
+}
+
 .legend-strip span {
   display: inline-flex;
   gap: 0.45rem;
@@ -1649,16 +1673,33 @@ button.hero-secondary-link {
   display: inline-block;
 }
 
-.legend-flood {
-  background: #f77158;
+.legend-zone {
+  background: rgba(25, 143, 136, 0.16);
+  border: 2px solid #198f88;
 }
 
-.legend-weather {
-  background: #f1c54f;
+.legend-incident {
+  background: #132438;
 }
 
-.legend-storm {
-  background: #3aa4d3;
+.legend-low {
+  background: #2874c9;
+}
+
+.legend-guarded {
+  background: #198f88;
+}
+
+.legend-elevated {
+  background: #f0a239;
+}
+
+.legend-high {
+  background: #ef6b3b;
+}
+
+.legend-severe {
+  background: #d94827;
 }
 
 .map-panel {
@@ -1904,6 +1945,10 @@ button.hero-secondary-link {
   .hero-cta-row,
   .demo-flow-actions {
     grid-template-columns: 1fr;
+  }
+
+  .map-explainer {
+    flex-direction: column;
   }
 
   .hero-cta-row,

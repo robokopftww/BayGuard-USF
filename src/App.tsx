@@ -986,10 +986,25 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
             <p className="page-kicker">City map</p>
             <h3>Tampa risk map</h3>
           </div>
-          <div className="legend-strip">
-            <span><i className="legend-swatch legend-flood" /> Flood</span>
-            <span><i className="legend-swatch legend-weather" /> Weather</span>
-            <span><i className="legend-swatch legend-storm" /> Storm</span>
+        </div>
+
+        <div className="map-key">
+          <div className="map-explainer">
+            <span className="map-explainer-pill">
+              <i className="legend-swatch legend-zone" /> Circles show watched areas
+            </span>
+            <span className="map-explainer-pill">
+              <i className="legend-swatch legend-incident" /> Dots mark active issues
+            </span>
+            <span className="map-explainer-pill">Bigger circles need more attention</span>
+          </div>
+
+          <div className="legend-strip legend-strip-threat">
+            <span><i className="legend-swatch legend-low" /> Low</span>
+            <span><i className="legend-swatch legend-guarded" /> Guarded</span>
+            <span><i className="legend-swatch legend-elevated" /> Elevated</span>
+            <span><i className="legend-swatch legend-high" /> High</span>
+            <span><i className="legend-swatch legend-severe" /> Severe</span>
           </div>
         </div>
 

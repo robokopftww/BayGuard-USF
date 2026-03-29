@@ -32,6 +32,32 @@ function threatColor(level: ZoneRisk['threatLevel'] | Incident['severity']): str
   }
 }
 
+function formatThreatLabel(level: ZoneRisk['threatLevel'] | Incident['severity']): string {
+  switch (level) {
+    case 'guarded':
+      return 'Guarded'
+    case 'elevated':
+      return 'Elevated'
+    case 'high':
+      return 'High'
+    case 'severe':
+      return 'Severe'
+    default:
+      return 'Low'
+  }
+}
+
+function formatIncidentCategory(category: Incident['category']): string {
+  switch (category) {
+    case 'flood':
+      return 'Flooding'
+    case 'storm':
+      return 'Storm damage'
+    default:
+      return 'Weather issue'
+  }
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -46,6 +72,7 @@ function zoneInfoHtml(zone: ZoneRisk): string {
     <div style="min-width:220px;font-family:Space Grotesk, sans-serif;color:#132438">
       <strong style="display:block;font-size:16px;margin-bottom:6px;">${escapeHtml(zone.name)}</strong>
       <div style="color:#5e7384;font-size:13px;margin-bottom:8px;">${escapeHtml(zone.neighborhood)}</div>
+      <div style="font-size:13px;font-weight:700;color:${threatColor(zone.threatLevel)};margin-bottom:8px;">Watch level: ${escapeHtml(formatThreatLabel(zone.threatLevel))}</div>
       <div style="font-size:14px;line-height:1.45;">${escapeHtml(zone.reason)}</div>
     </div>
   `
@@ -56,6 +83,7 @@ function incidentInfoHtml(incident: Incident): string {
     <div style="min-width:240px;font-family:Space Grotesk, sans-serif;color:#132438">
       <strong style="display:block;font-size:16px;margin-bottom:6px;">${escapeHtml(incident.title)}</strong>
       <div style="color:#5e7384;font-size:13px;margin-bottom:8px;">${escapeHtml(incident.source)}</div>
+      <div style="font-size:13px;font-weight:700;color:${threatColor(incident.severity)};margin-bottom:8px;">${escapeHtml(formatIncidentCategory(incident.category))} • ${escapeHtml(formatThreatLabel(incident.severity))}</div>
       <div style="font-size:14px;line-height:1.45;margin-bottom:8px;">${escapeHtml(incident.description)}</div>
       <div style="font-size:13px;color:#294155;"><strong>Action:</strong> ${escapeHtml(incident.recommendation)}</div>
     </div>
