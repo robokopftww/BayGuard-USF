@@ -289,8 +289,9 @@ export interface SmsDispatchResult {
 
 export interface EvacuationPlan {
   address: string
-  category: number
+  stormCategory: number
   floodZone: 'A' | 'B' | 'C' | 'Unknown'
+  status: 'normal' | 'watch' | 'evacuate'
   mustEvacuate: boolean
   reason: string
   shelter: {

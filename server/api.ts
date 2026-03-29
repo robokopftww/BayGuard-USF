@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 
 import { createIntelSnapshot } from './orchestrator.js'
+import { fetchEvacuationZoneForPoint } from './data-sources.js'
 import {
   dispatchSmsForScenario,
   getSmsCenterState,
@@ -112,6 +113,8 @@ const fallbackZoneKeywords: Array<{
 
 let cache: { value: IntelSnapshot; fetchedAt: number } | null = null
 
+type EvacuationStatus = EvacuationPlan['status']
+
 export function parseScenario(value: unknown): SimulationScenario {
   if (typeof value === 'string' && allowedScenarios.includes(value as SimulationScenario)) {
     return value as SimulationScenario
@@ -152,6 +155,22 @@ function inferFloodZoneFromAddress(address: string): EvacuationPlan['floodZone']
   return 'Unknown'
 }
 
+async function resolveFloodZone(
+  address: string,
+  lat?: number | null,
+  lon?: number | null,
+): Promise<EvacuationPlan['floodZone']> {
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    try {
+      return await fetchEvacuationZoneForPoint(lat ?? 0, lon ?? 0)
+    } catch {
+      return inferFloodZoneFromAddress(address)
+    }
+  }
+
+  return inferFloodZoneFromAddress(address)
+}
+
 function evacuationThresholdForZone(zone: EvacuationPlan['floodZone']): number | null {
   switch (zone) {
     case 'A':
@@ -165,19 +184,92 @@ function evacuationThresholdForZone(zone: EvacuationPlan['floodZone']): number |
   }
 }
 
-function buildFallbackEvacuationPlan(address: string, category: number): EvacuationPlan {
-  const floodZone = inferFloodZoneFromAddress(address)
+function stormAlertEvents(snapshot: IntelSnapshot | null): string[] {
+  if (!snapshot) {
+    return []
+  }
+
+  return snapshot.signals.weather.alerts
+    .map((alert) => alert.event)
+    .filter((event) => /(hurricane|tropical storm|storm surge)/i.test(event))
+}
+
+function deriveCurrentStormCategory(snapshot: IntelSnapshot | null): number {
+  if (!snapshot) {
+    return 0
+  }
+
+  if (snapshot.simulation.scenario === 'compound') {
+    return 4
+  }
+
+  if (snapshot.simulation.scenario === 'hurricane') {
+    return 3
+  }
+
+  const stormAlerts = stormAlertEvents(snapshot)
+  const hasHurricaneWarning = stormAlerts.some((event) => /hurricane warning|storm surge warning/i.test(event))
+  const hasHurricaneWatch = stormAlerts.some((event) => /hurricane watch|storm surge watch/i.test(event))
+  const hasTropicalStormWarning = stormAlerts.some((event) => /tropical storm warning/i.test(event))
+  const activeSystems = snapshot.signals.tropical.activeSystems.length
+  const maxWind = snapshot.signals.weather.maxWindGustMphNext12h
+
+  if (hasHurricaneWarning || snapshot.overview.threatLevel === 'severe') {
+    return 4
+  }
+
+  if (hasHurricaneWatch || snapshot.overview.threatLevel === 'high' || maxWind >= 75) {
+    return 3
+  }
+
+  if (hasTropicalStormWarning || activeSystems > 0 || snapshot.overview.threatLevel === 'elevated' || maxWind >= 45) {
+    return 2
+  }
+
+  if (snapshot.overview.threatLevel === 'guarded' && (stormAlerts.length > 0 || maxWind >= 30)) {
+    return 1
+  }
+
+  return 0
+}
+
+function deriveEvacuationStatus(
+  floodZone: EvacuationPlan['floodZone'],
+  stormCategory: number,
+  mustEvacuate: boolean,
+): EvacuationStatus {
+  if (mustEvacuate) {
+    return 'evacuate'
+  }
+
+  if (stormCategory > 0 || floodZone === 'Unknown') {
+    return stormCategory > 0 ? 'watch' : 'normal'
+  }
+
+  return 'normal'
+}
+
+function buildFallbackEvacuationPlan(
+  address: string,
+  stormCategory: number,
+  floodZone: EvacuationPlan['floodZone'],
+): EvacuationPlan {
   const threshold = evacuationThresholdForZone(floodZone)
-  const mustEvacuate = threshold !== null && category >= threshold
+  const mustEvacuate = threshold !== null && stormCategory >= threshold
+  const status = deriveEvacuationStatus(floodZone, stormCategory, mustEvacuate)
   const matchingRule = fallbackZoneKeywords.find((rule) => rule.zone === floodZone)
   const shelter = mustEvacuate && matchingRule ? fallbackShelters[matchingRule.shelterIndex] : null
 
   const reason =
     floodZone === 'Unknown'
-      ? 'BayGuard could not confidently match this address to a Tampa evacuation zone from the local reference list.'
+      ? stormCategory > 0
+        ? 'BayGuard could not confidently match this address to a Tampa evacuation zone, so keep checking local guidance as conditions change.'
+        : 'BayGuard could not confidently match this address to a Tampa evacuation zone, but current conditions look normal right now.'
       : mustEvacuate
-        ? `This address appears to sit in Zone ${floodZone}, which should evacuate for a Category ${threshold} storm or stronger.`
-        : `This address appears to sit in Zone ${floodZone}, but that zone does not need to evacuate until a stronger storm category.`
+        ? `This address appears to sit in Zone ${floodZone}, and current storm conditions are strong enough for that zone to evacuate now.`
+        : stormCategory > 0
+          ? `This address appears to sit in Zone ${floodZone}, but current conditions are not strong enough for that zone to evacuate yet.`
+          : `This address appears to sit in Zone ${floodZone}, and no evacuation is needed under current conditions.`
 
   const steps = mustEvacuate
     ? [
@@ -188,22 +280,29 @@ function buildFallbackEvacuationPlan(address: string, category: number): Evacuat
         'Bring medication, IDs, chargers, and enough clothing for two days.',
         'Avoid shoreline roads and low underpasses on the way out.',
       ]
-    : floodZone === 'Unknown'
-      ? [
-          'Double-check the address and nearby neighborhood name.',
-          'Watch official Hillsborough County evacuation updates if conditions worsen.',
-          'Keep a plan ready in case the storm track shifts.',
-        ]
+    : status === 'watch'
+      ? floodZone === 'Unknown'
+        ? [
+            'Double-check the address or nearby neighborhood name.',
+            'Watch official Hillsborough County evacuation updates if conditions worsen.',
+            'Keep a plan ready in case the storm track shifts.',
+          ]
+        : [
+            'Stay ready and keep checking official local updates.',
+            'Review your route before conditions worsen.',
+            'Prepare a small go-bag in case conditions escalate.',
+          ]
       : [
-          'Stay ready and keep checking official local updates.',
-          'Review your route before conditions worsen.',
-          'Prepare a small go-bag in case the storm category rises.',
+          'Normal activity is okay right now.',
+          'Keep alerts on so you see changes early.',
+          'Review your route and supplies before conditions worsen.',
         ]
 
   return {
     address,
-    category,
+    stormCategory,
     floodZone,
+    status,
     mustEvacuate,
     reason,
     shelter: shelter ?? null,
@@ -217,6 +316,14 @@ function buildFallbackEvacuationPlan(address: string, category: number): Evacuat
       'Change of clothes',
     ],
     mode: 'fallback',
+  }
+}
+
+async function getLiveSnapshotForEvacuation(): Promise<IntelSnapshot | null> {
+  try {
+    return await getIntelPayload({ scenario: 'live' })
+  } catch {
+    return cache?.value.simulation.scenario === 'live' ? cache.value : null
   }
 }
 
@@ -424,24 +531,39 @@ export async function verifyPayload(body: { report?: unknown; issueType?: unknow
   }
 }
 
-export async function evacuatePayload(body: { address?: unknown; category?: unknown }): Promise<EvacuationPlan> {
+export async function evacuatePayload(body: {
+  address?: unknown
+  lat?: unknown
+  lon?: unknown
+}): Promise<EvacuationPlan> {
   const address = typeof body.address === 'string' ? body.address.trim() : ''
-  const category = typeof body.category === 'number' ? body.category : Number(body.category)
+  const lat = typeof body.lat === 'number' ? body.lat : Number(body.lat)
+  const lon = typeof body.lon === 'number' ? body.lon : Number(body.lon)
 
-  if (!address || !Number.isFinite(category) || category <= 0) {
-    throw new ApiError(400, { error: 'address and category are required' })
+  if (!address) {
+    throw new ApiError(400, { error: 'address is required' })
   }
 
-  const fallbackPlan = buildFallbackEvacuationPlan(address, category)
+  const snapshot = await getLiveSnapshotForEvacuation()
+  const stormCategory = deriveCurrentStormCategory(snapshot)
+  const floodZone = await resolveFloodZone(address, Number.isFinite(lat) ? lat : null, Number.isFinite(lon) ? lon : null)
+  const fallbackPlan = buildFallbackEvacuationPlan(address, stormCategory, floodZone)
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
     return fallbackPlan
   }
 
+  const stormEvents = stormAlertEvents(snapshot)
+  const liveSummary =
+    snapshot?.overview.summary ??
+    'BayGuard is checking live Tampa weather, tide, and storm conditions.'
+
   const prompt = [
     'You are a Tampa Bay emergency management AI.',
     `Someone lives at: ${address}.`,
-    `A Category ${category} hurricane is approaching Tampa Bay.`,
+    `BayGuard currently sees storm category ${stormCategory === 0 ? '0 (normal / no active evacuation trigger)' : stormCategory} conditions for Tampa.`,
+    `Current BayGuard summary: ${liveSummary}`,
+    `Current storm-related alerts: ${stormEvents.length > 0 ? stormEvents.join(', ') : 'none'}.`,
     '',
     'Tampa Flood Zones:',
     '- Zone A: Evacuate for Cat 1+. Lowest elevation, storm surge risk. Areas: Davis Islands, Apollo Beach, Gandy area, Ballast Point waterfront.',
@@ -455,10 +577,11 @@ export async function evacuatePayload(body: { address?: unknown; category?: unkn
     '4. Freedom High School, 7154 Forest Grove Dr, Tampa FL 33620',
     '5. Armwood High School, 12000 US-92, Seffner FL 33584',
     '',
-    'Generate a specific, realistic evacuation plan for this address and hurricane category.',
+    'Generate a specific, realistic address check for current Tampa conditions.',
     'Respond ONLY in this JSON format:',
     '{',
     '  "floodZone": "A" | "B" | "C" | "Unknown",',
+    '  "status": "normal" | "watch" | "evacuate",',
     '  "mustEvacuate": true | false,',
     '  "reason": "<one sentence explaining why or why not>",',
     '  "shelter": { "name": "<shelter name>", "address": "<full address>" },',
@@ -479,15 +602,23 @@ export async function evacuatePayload(body: { address?: unknown; category?: unkn
       shelter?: { name?: string; address?: string } | null
     }
 
+    const normalizedFloodZone =
+      parsed.floodZone === 'A' || parsed.floodZone === 'B' || parsed.floodZone === 'C'
+        ? parsed.floodZone
+        : fallbackPlan.floodZone
+    const normalizedMustEvacuate =
+      typeof parsed.mustEvacuate === 'boolean' ? parsed.mustEvacuate : fallbackPlan.mustEvacuate
+    const normalizedStatus =
+      parsed.status === 'normal' || parsed.status === 'watch' || parsed.status === 'evacuate'
+        ? parsed.status
+        : deriveEvacuationStatus(normalizedFloodZone, stormCategory, normalizedMustEvacuate)
+
     return {
       address,
-      category,
-      floodZone:
-        parsed.floodZone === 'A' || parsed.floodZone === 'B' || parsed.floodZone === 'C'
-          ? parsed.floodZone
-          : fallbackPlan.floodZone,
-      mustEvacuate:
-        typeof parsed.mustEvacuate === 'boolean' ? parsed.mustEvacuate : fallbackPlan.mustEvacuate,
+      stormCategory,
+      floodZone: normalizedFloodZone,
+      status: normalizedStatus,
+      mustEvacuate: normalizedMustEvacuate,
       reason:
         typeof parsed.reason === 'string' && parsed.reason.trim()
           ? parsed.reason.trim()

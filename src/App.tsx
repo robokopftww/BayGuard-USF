@@ -987,7 +987,6 @@ function tideStatusLabel(maxPredictedFtNext24h: number): 'High' | 'Low' {
 function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
   const [mapFilter, setMapFilter] = useState<MapHazard>('all')
   const [addressInput, setAddressInput] = useState('')
-  const [stormCategory, setStormCategory] = useState(1)
   const [isCheckingAddress, setIsCheckingAddress] = useState(false)
   const [addressCheck, setAddressCheck] = useState<EvacuationPlan | null>(null)
   const [addressCheckError, setAddressCheckError] = useState<string | null>(null)
@@ -1040,6 +1039,28 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
       ? `Showing ${formatCount(filteredZones.length, 'watched area')} and ${formatCount(filteredIncidents.length, 'active issue')}. Low-risk areas are hidden to keep the map clear.`
       : `Showing ${hazardLabel(mapFilter).toLowerCase()} only: ${formatCount(filteredZones.length, 'watched area')} and ${formatCount(filteredIncidents.length, 'active issue')}.`
 
+  const geocodeAddress = async (address: string) => {
+    const geocoder = globalThis.google?.maps?.Geocoder ? new globalThis.google.maps.Geocoder() : null
+    if (!geocoder) {
+      return null
+    }
+
+    try {
+      const result = await geocoder.geocode({ address })
+      const location = result.results[0]?.geometry.location
+      if (!location) {
+        return null
+      }
+
+      return {
+        lat: location.lat(),
+        lon: location.lng(),
+      }
+    } catch {
+      return null
+    }
+  }
+
   const handleAddressCheck = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -1052,12 +1073,13 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
     setAddressCheckError(null)
 
     try {
+      const geocoded = await geocodeAddress(addressInput.trim())
       const response = await fetch('/api/evacuate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           address: addressInput.trim(),
-          category: stormCategory,
+          ...(geocoded ?? {}),
         }),
       })
 
@@ -1161,8 +1183,8 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
         <div className="address-check-layout">
           <form className="address-check-form" onSubmit={handleAddressCheck}>
             <p className="map-focus-note">
-              Enter a Tampa-area address and choose a storm category to see whether it falls in an
-              evacuation zone and whether you should leave.
+              Enter a Tampa-area address and BayGuard will check whether it falls in an evacuation
+              zone and whether conditions are normal, under watch, or evacuation-level.
             </p>
 
             <label className="field">
@@ -1174,22 +1196,6 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
                 required
               />
             </label>
-
-            <div className="field-grid">
-              <label className="field">
-                <span>Storm category</span>
-                <select
-                  value={stormCategory}
-                  onChange={(event) => setStormCategory(Number(event.target.value))}
-                >
-                  {[1, 2, 3, 4, 5].map((category) => (
-                    <option key={category} value={category}>
-                      Category {category}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
 
             <button type="submit" className="primary-action" disabled={isCheckingAddress}>
               <Compass size={16} />
@@ -1207,7 +1213,7 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
                   </div>
                   <div className="zone-chip-stack">
                     <span className={`severity-chip ${evacuationSeverityClass(addressCheck)}`}>
-                      {addressCheck.mustEvacuate ? 'Evacuate' : 'Stay put'}
+                      {evacuationStatusLabel(addressCheck)}
                     </span>
                     <span className="hazard-type-pill hazard-type-storm">
                       {addressCheck.floodZone === 'Unknown'
@@ -1221,14 +1227,18 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
 
                 <div className="snapshot-stat-grid snapshot-stat-grid-tight address-check-stats">
                   <article className="snapshot-stat-card snapshot-stat-card-compact">
-                    <span>Address</span>
-                    <strong>{compactText(addressCheck.address, 46)}</strong>
-                    <small>Checked for a Category {addressCheck.category} storm.</small>
+                    <span>Evacuation zone</span>
+                    <strong>
+                      {addressCheck.floodZone === 'Unknown'
+                        ? 'Not matched yet'
+                        : `Zone ${addressCheck.floodZone}`}
+                    </strong>
+                    <small>{compactText(addressCheck.address, 46)}</small>
                   </article>
                   <article className="snapshot-stat-card snapshot-stat-card-compact">
-                    <span>Shelter</span>
-                    <strong>{addressCheck.shelter?.name ?? 'Not needed yet'}</strong>
-                    <small>{addressCheck.shelter?.address ?? 'Stay ready and keep watching updates.'}</small>
+                    <span>Current status</span>
+                    <strong>{evacuationStatusCopy(addressCheck)}</strong>
+                    <small>{addressCheck.shelter?.name ?? 'No shelter action needed right now.'}</small>
                   </article>
                 </div>
 
@@ -1251,7 +1261,7 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
                 title={addressCheckError ? 'Address check unavailable' : 'No address checked yet'}
                 body={
                   addressCheckError ??
-                  'Use this tool during hurricane conditions to see whether your address sits in an evacuation zone.'
+                  'Enter a Tampa-area address to see if it sits in an evacuation zone and whether current conditions are normal or evacuation-level.'
                 }
               />
             )}
@@ -1659,27 +1669,47 @@ function waterfrontGuidance(level: ThreatLevel, peakWaterFt?: number): string {
 }
 
 function evacuationHeadline(plan: EvacuationPlan): string {
-  if (plan.mustEvacuate) {
-    return 'This address should evacuate'
+  switch (plan.status) {
+    case 'evacuate':
+      return 'Evacuation is recommended'
+    case 'watch':
+      return plan.floodZone === 'Unknown' ? 'Address under watch' : `Zone ${plan.floodZone} is under watch`
+    default:
+      return plan.floodZone === 'Unknown' ? 'Normal right now' : `Zone ${plan.floodZone}, normal right now`
   }
-
-  if (plan.floodZone === 'Unknown') {
-    return 'BayGuard could not match a zone'
-  }
-
-  return `Zone ${plan.floodZone}, no evacuation yet`
 }
 
 function evacuationSeverityClass(plan: EvacuationPlan): string {
-  if (plan.mustEvacuate) {
-    return 'severity-high'
+  switch (plan.status) {
+    case 'evacuate':
+      return 'severity-high'
+    case 'watch':
+      return 'severity-elevated'
+    default:
+      return 'severity-low'
   }
+}
 
-  if (plan.floodZone === 'Unknown') {
-    return 'severity-low'
+function evacuationStatusLabel(plan: EvacuationPlan): string {
+  switch (plan.status) {
+    case 'evacuate':
+      return 'Evacuate now'
+    case 'watch':
+      return 'Watch'
+    default:
+      return 'Normal'
   }
+}
 
-  return 'severity-guarded'
+function evacuationStatusCopy(plan: EvacuationPlan): string {
+  switch (plan.status) {
+    case 'evacuate':
+      return 'Leave for a safer inland area.'
+    case 'watch':
+      return 'No evacuation yet. Stay ready.'
+    default:
+      return 'No evacuation needed right now.'
+  }
 }
 
 function scenarioLabel(scenario: SimulationScenario): string {

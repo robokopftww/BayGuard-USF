@@ -413,6 +413,15 @@ function pointInPolygon(lat: number, lon: number, rings: number[][][]): boolean 
   return rings.some((ring) => pointInRing(lat, lon, ring))
 }
 
+function getEvacuationFeatures(payload: ArcGisEvacuationResponse) {
+  return (payload.features ?? []).filter(
+    (feature): feature is ArcGisEvacuationFeature & {
+      attributes: { ZONE?: string }
+      geometry: { rings: number[][][] }
+    } => Array.isArray(feature.geometry?.rings),
+  )
+}
+
 function cleanHtml(input: string): string {
   return input
     .replace(/<br\s*\/?>/gi, ' ')
@@ -683,10 +692,7 @@ export async function fetchUtilityOutageSignal(): Promise<UtilityOutageSignal> {
 
 export async function fetchEvacuationSignal(zones: ZoneReference[]): Promise<EvacuationSignal> {
   const payload = await fetchJson<ArcGisEvacuationResponse>(HILLSBOROUGH_EVACUATION_LAYER_QUERY_URL)
-  const features = (payload.features ?? []).filter(
-    (feature): feature is ArcGisEvacuationFeature & { attributes: { ZONE?: string }; geometry: { rings: number[][][] } } =>
-      Array.isArray(feature.geometry?.rings),
-  )
+  const features = getEvacuationFeatures(payload)
 
   const assignments: EvacuationZoneAssignment[] = zones.map((zone) => {
     const matchedFeature = features.find((feature) =>
@@ -706,4 +712,16 @@ export async function fetchEvacuationSignal(zones: ZoneReference[]): Promise<Eva
     note: 'Official Hillsborough County evacuation zones are loaded for BayGuard neighborhoods.',
     assignments,
   }
+}
+
+export async function fetchEvacuationZoneForPoint(
+  lat: number,
+  lon: number,
+): Promise<'A' | 'B' | 'C' | 'Unknown'> {
+  const payload = await fetchJson<ArcGisEvacuationResponse>(HILLSBOROUGH_EVACUATION_LAYER_QUERY_URL)
+  const features = getEvacuationFeatures(payload)
+  const matchedFeature = features.find((feature) => pointInPolygon(lat, lon, feature.geometry.rings))
+  const zone = matchedFeature?.attributes?.ZONE
+
+  return zone === 'A' || zone === 'B' || zone === 'C' ? zone : 'Unknown'
 }

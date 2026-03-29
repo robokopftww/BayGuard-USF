@@ -1839,6 +1839,10 @@ button.hero-secondary-link {
   gap: 0.95rem;
 }
 
+.address-check-form .primary-action {
+  justify-self: start;
+}
+
 .address-check-result {
   padding: 1rem;
   display: grid;
