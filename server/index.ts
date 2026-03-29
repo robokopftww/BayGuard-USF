@@ -7,13 +7,16 @@ import { fileURLToPath } from 'node:url'
 
 import {
   ApiError,
+  createCommunityReportPayload,
   createSmsSubscriberPayload,
   dispatchSmsPayload,
   evacuatePayload,
   evaluateSmsPayload,
+  getCommunityReportsPayload,
   getHealthPayload,
   getIntelPayload,
   getSmsPayload,
+  reverifyCommunityReportPayload,
   unsubscribeSmsSubscriberPayload,
   verifyPayload,
 } from './api.js'
@@ -58,6 +61,43 @@ app.get('/api/sms', async (_request, response) => {
       message: 'Unable to load the SMS control room right now.',
       details: error instanceof Error ? error.message : 'Unknown server error',
     })
+  }
+})
+
+app.get('/api/reports', async (_request, response) => {
+  try {
+    response.json(await getCommunityReportsPayload())
+  } catch (error) {
+    response.status(500).json({
+      message: 'Unable to load BayGuard community reports right now.',
+      details: error instanceof Error ? error.message : 'Unknown server error',
+    })
+  }
+})
+
+app.post('/api/reports', async (request, response) => {
+  try {
+    response.status(201).json(await createCommunityReportPayload(request.body ?? {}))
+  } catch (error) {
+    const status = error instanceof ApiError ? error.status : 400
+    response.status(status).json(
+      error instanceof ApiError
+        ? error.payload
+        : { message: 'Unable to save this community report.' },
+    )
+  }
+})
+
+app.post('/api/reports/verify', async (request, response) => {
+  try {
+    response.json(await reverifyCommunityReportPayload(request.body ?? {}))
+  } catch (error) {
+    const status = error instanceof ApiError ? error.status : 404
+    response.status(status).json(
+      error instanceof ApiError
+        ? error.payload
+        : { message: 'Unable to re-check this community report.' },
+    )
   }
 })
 

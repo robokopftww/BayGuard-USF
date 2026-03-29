@@ -16,6 +16,7 @@ import type {
   ThreatLevel,
   TropicalSignal,
   WeatherSignal,
+  ZoneReference,
   ZoneRisk,
 } from '../shared/types.js'
 
@@ -288,6 +289,17 @@ const ZONE_TEMPLATES: ZoneTemplate[] = [
 ]
 
 const ZONE_TEMPLATE_BY_ID = new Map(ZONE_TEMPLATES.map((zone) => [zone.id, zone]))
+
+export function getZoneCatalog(): ZoneReference[] {
+  return ZONE_TEMPLATES.map((zone) => ({
+    id: zone.id,
+    name: zone.name,
+    neighborhood: zone.neighborhood,
+    kind: zone.kind,
+    lat: zone.lat,
+    lon: zone.lon,
+  }))
+}
 
 interface JudgeVerdict {
   headline: string

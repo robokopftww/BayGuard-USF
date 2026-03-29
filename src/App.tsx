@@ -7,6 +7,7 @@ import {
   Compass,
   House,
   Map,
+  MessageSquareWarning,
   RefreshCcw,
   ShieldAlert,
   Siren,
@@ -18,6 +19,7 @@ import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { startTransition, useCallback, useEffect, useState, type ReactNode } from 'react'
 
 import { IntelMap } from './components/IntelMap'
+import ReportsPage from './pages/ReportsPage'
 import SmsPage from './pages/SmsPage'
 import './App.css'
 import type { IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types'
@@ -227,6 +229,7 @@ function App() {
               />
             }
           />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/sms" element={<SmsPage activeScenario={scenario} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -337,6 +340,12 @@ function OverviewPage({
                   title="Map room"
                   caption="See which neighborhoods and bayfront zones need attention."
                   icon={<Map size={18} />}
+                />
+                <QuickActionCard
+                  to="/reports"
+                  title="Community reports"
+                  caption="See what residents are reporting and how BayGuard checked it."
+                  icon={<MessageSquareWarning size={18} />}
                 />
                 <QuickActionCard
                   to="/alerts"
@@ -906,6 +915,7 @@ const scenarioOptions: Array<{ value: SimulationScenario; label: string }> = [
 const navItems = [
   { to: '/', label: 'Overview', caption: 'Citywide posture', icon: Compass },
   { to: '/map', label: 'Map Room', caption: 'Spatial signal view', icon: Map },
+  { to: '/reports', label: 'Reports', caption: 'Community verification', icon: MessageSquareWarning },
   { to: '/alerts', label: 'Alerts', caption: 'Incidents and notices', icon: BellRing },
   { to: '/sms', label: 'SMS', caption: 'Subscribers and dispatch', icon: Smartphone },
 ]
@@ -922,6 +932,12 @@ const pageMeta: Record<string, { kicker: string; title: string; description: str
     title: 'A dedicated spatial view for neighborhoods, incidents, and coastal telemetry.',
     description:
       'Use the map room when you need to understand where conditions are building instead of just how severe they are.',
+  },
+  '/reports': {
+    kicker: 'Reports',
+    title: 'A place for resident reports and BayGuard verification.',
+    description:
+      'Residents can submit what they are seeing on the ground while BayGuard checks those claims against live Tampa conditions.',
   },
   '/alerts': {
     kicker: 'Alerts',

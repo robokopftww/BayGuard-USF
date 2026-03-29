@@ -10,6 +10,16 @@ export type SmsAlertType = 'general' | 'flood' | 'storm' | 'weather'
 
 export type SmsDispatchStatus = 'mocked' | 'sent' | 'skipped' | 'failed'
 
+export type CommunityReportType =
+  | 'flooding'
+  | 'road-hazard'
+  | 'wind-damage'
+  | 'power-outage'
+  | 'storm-impact'
+  | 'other'
+
+export type CommunityVerificationStatus = 'confirmed' | 'likely' | 'unverified'
+
 export interface LocationInfo {
   name: string
   county: string
@@ -111,6 +121,15 @@ export interface ZoneRisk {
   score: number
   threatLevel: ThreatLevel
   reason: string
+}
+
+export interface ZoneReference {
+  id: string
+  name: string
+  neighborhood: string
+  kind: ZoneRisk['kind']
+  lat: number
+  lon: number
 }
 
 export interface SourceRef {
@@ -215,4 +234,50 @@ export interface SmsDispatchResult {
   deliveredCount: number
   failedCount: number
   event?: SmsDispatchRecord
+}
+
+export interface CommunityReportVerification {
+  status: CommunityVerificationStatus
+  confidence: number
+  summary: string
+  supportingSignals: string[]
+  sourceLabels: string[]
+  checkedAt: string
+  mode: 'gemini' | 'fallback'
+}
+
+export interface CommunityReport {
+  id: string
+  reporterName: string
+  type: CommunityReportType
+  locationHint: string
+  zoneId?: string
+  zoneName?: string
+  details: string
+  createdAt: string
+  updatedAt: string
+  verification: CommunityReportVerification
+}
+
+export interface CommunityReportInput {
+  reporterName?: string
+  type: CommunityReportType
+  locationHint: string
+  zoneId?: string
+  details: string
+}
+
+export interface CommunityReportsState {
+  verificationMode: 'gemini' | 'fallback'
+  note: string
+  stats: {
+    totalReports: number
+    confirmedCount: number
+    likelyCount: number
+    unverifiedCount: number
+  }
+  zones: ZoneReference[]
+  reports: CommunityReport[]
+  lastSubmissionAt?: string
+  lastVerifiedAt?: string
 }

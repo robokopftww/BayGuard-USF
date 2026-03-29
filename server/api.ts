@@ -8,7 +8,16 @@ import {
   subscribeToSms,
   unsubscribeFromSms,
 } from './notifications/service.js'
+import {
+  getCommunityReportsState,
+  parseCommunityReportType,
+  reverifyCommunityReport,
+  submitCommunityReport,
+  verifyUnsavedCommunityClaim,
+} from './reports/service.js'
 import type {
+  CommunityReportInput,
+  CommunityReportType,
   IntelSnapshot,
   SimulationScenario,
   SmsAlertType,
@@ -146,59 +155,82 @@ export async function evaluateSmsPayload() {
   return result ?? { outcome: 'skipped', reason: 'SMS evaluator is disabled on this deployment.' }
 }
 
+export async function getCommunityReportsPayload() {
+  return getCommunityReportsState()
+}
+
+export async function createCommunityReportPayload(body: Partial<CommunityReportInput>) {
+  const locationHint = typeof body.locationHint === 'string' ? body.locationHint.trim() : ''
+  const details = typeof body.details === 'string' ? body.details.trim() : ''
+
+  if (!locationHint) {
+    throw new ApiError(400, { message: 'Location is required.' })
+  }
+
+  if (!details) {
+    throw new ApiError(400, { message: 'Report details are required.' })
+  }
+
+  return submitCommunityReport({
+    reporterName: typeof body.reporterName === 'string' ? body.reporterName : undefined,
+    type: parseCommunityReportType(body.type),
+    locationHint,
+    zoneId: typeof body.zoneId === 'string' && body.zoneId.trim() ? body.zoneId : undefined,
+    details,
+  })
+}
+
+export async function reverifyCommunityReportPayload(body: { id?: unknown }) {
+  if (typeof body.id !== 'string' || !body.id.trim()) {
+    throw new ApiError(400, { message: 'Report id is required.' })
+  }
+
+  try {
+    return await reverifyCommunityReport(body.id)
+  } catch (error) {
+    throw new ApiError(404, {
+      message: error instanceof Error ? error.message : 'Report not found.',
+    })
+  }
+}
+
 export async function verifyPayload(body: { report?: unknown; issueType?: unknown }) {
   const report = typeof body.report === 'string' ? body.report.trim() : ''
-  const issueType = typeof body.issueType === 'string' ? body.issueType : 'general'
+  const issueType = typeof body.issueType === 'string' ? body.issueType : 'other'
 
   if (!report) {
     throw new ApiError(400, { error: 'report is required' })
   }
 
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    throw new ApiError(500, { error: 'Gemini API key not configured on server' })
+  const issueTypeMap: Record<string, CommunityReportType> = {
+    flood: 'flooding',
+    flooding: 'flooding',
+    road: 'road-hazard',
+    traffic: 'road-hazard',
+    wind: 'wind-damage',
+    damage: 'wind-damage',
+    power: 'power-outage',
+    outage: 'power-outage',
+    storm: 'storm-impact',
+    weather: 'storm-impact',
+    general: 'other',
+    other: 'other',
   }
 
-  const [alertsResult, usgsResult, forecastResult] = await Promise.allSettled([
-    fetch('https://api.weather.gov/alerts/active?area=FL', {
-      headers: { 'User-Agent': 'BayGuard/1.0 (hackathon)' },
-    }).then((response) => response.json()),
-    fetch(
-      'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=02303000&parameterCd=00065',
-    ).then((response) => response.json()),
-    fetch('https://api.weather.gov/points/27.9506,-82.4572/forecast', {
-      headers: { 'User-Agent': 'BayGuard/1.0 (hackathon)' },
-    }).then((response) => response.json()),
-  ])
-
-  const sensorData = {
-    nwsAlerts: alertsResult.status === 'fulfilled' ? alertsResult.value : null,
-    usgsWaterLevel: usgsResult.status === 'fulfilled' ? usgsResult.value : null,
-    nwsForecast: forecastResult.status === 'fulfilled' ? forecastResult.value : null,
-  }
-
-  const prompt = [
-    'You are a Tampa Bay emergency verification AI.',
-    `A citizen reported: "${report}". Issue type: ${issueType}.`,
-    `Here is real sensor data from NOAA and USGS: ${JSON.stringify(sensorData).slice(0, 6000)}.`,
-    'Verify this report against the sensor data.',
-    'Respond ONLY in this JSON format:',
-    '{',
-    '  "status": "CONFIRMED" | "LIKELY" | "UNVERIFIED",',
-    '  "confidence": <integer 0-100>,',
-    '  "sources": ["which APIs supported the claim"],',
-    '  "explanation": "<2-3 sentences plain English>"',
-    '}',
-  ].join('\n')
-
-  const ai = new GoogleGenAI({ apiKey })
-  const geminiResponse = await ai.models.generateContent({
-    model: process.env.GEMINI_MODEL ?? 'gemini-1.5-flash',
-    contents: [{ text: prompt }],
-    config: { responseMimeType: 'application/json', temperature: 0.3 },
+  const verification = await verifyUnsavedCommunityClaim({
+    reporterName: 'API verification',
+    type: issueTypeMap[issueType.toLowerCase()] ?? 'other',
+    locationHint: 'Tampa',
+    details: report,
   })
 
-  return JSON.parse(geminiResponse.text ?? '{}')
+  return {
+    status: verification.verification.status.toUpperCase(),
+    confidence: verification.verification.confidence,
+    sources: verification.verification.sourceLabels,
+    explanation: verification.verification.summary,
+    zoneName: verification.zoneName ?? null,
+  }
 }
 
 export async function evacuatePayload(body: { address?: unknown; category?: unknown }) {
