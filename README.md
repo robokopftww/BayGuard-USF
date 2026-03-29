@@ -1,12 +1,35 @@
 # BayGuard Tampa
 
-BayGuard Tampa is a disaster-alert web app for Tampa that combines:
+BayGuard Tampa is a real-time multi-agent disaster intelligence app built for Tampa.
 
-- A live operations map focused on flood, rain, and hurricane exposure.
-- A multi-agent backend with `Weather Bot`, `Flood Bot`, `Storm Bot`, and a final judge.
-- Optional Gemini orchestration for the final decision layer.
+It combines live coastal, rainfall, and storm monitoring with AI-assisted verification so residents and responders can:
+
+- see where risk is building on a Tampa map
+- verify citizen reports against live sensor and alert data
+- generate clearer alert language from the live signal stack
+- manage SMS drills and subscriber warnings
+- understand what the system is watching and why it matters locally
 
 When no Gemini key is present, the app falls back to a deterministic judge so the dashboard still runs safely.
+
+## Product modules
+
+- `Live Risk Map`: neighborhood risk zones, incidents, and coastal telemetry
+- `Citizen Report Verification`: resident-submitted claims checked against live signals
+- `AI Alert Generator`: BayGuard summary and alert language based on current conditions
+- `Emergency SMS Dispatch`: subscriber control room and drill/live dispatch flow
+- `Neighborhood Watch`: Tampa-specific zone scoring across flood, weather, and storm exposure
+- `Travel Impact Guidance`: driver-facing awareness for roads and exposed corridors
+
+## End-to-end demo flow
+
+BayGuard is strongest when judges can see the whole loop:
+
+1. A resident reports flooding, storm damage, or another ground-truth observation.
+2. BayGuard cross-checks the claim against live NWS, NOAA, NHC, and internal zone signals.
+3. The matching neighborhood becomes more visible in the map room and incident desk.
+4. The summary layer drafts the public-facing alert language.
+5. The SMS control room can dispatch the message to subscribers or rehearse it as a drill.
 
 ## What it uses
 
@@ -17,6 +40,16 @@ When no Gemini key is present, the app falls back to a deterministic judge so th
 - Optional `Twilio` integration for resident SMS alerts.
 - `React + Vite` for the frontend.
 - `Express + TypeScript` for the orchestration backend.
+
+## Why Tampa?
+
+Tampa needs a more local signal stack than a generic weather dashboard:
+
+- bayfront roads and low-lying neighborhoods react quickly to elevated water
+- sudden afternoon rainfall can create drainage trouble long before a major warning appears
+- different parts of the city, from Davis Islands to the University Area, react differently to the same storm cycle
+
+BayGuard is tuned around those local conditions instead of treating the city as a flat weather blob.
 
 ## Local setup
 
@@ -175,11 +208,31 @@ The local Express server runs the SMS evaluator on an interval. Vercel Functions
 - `Weather Bot`: reads NWS alerts, rainfall probability, forecast periods, and wind gust guidance.
 - `Flood Bot`: reads NOAA coastal stations and looks for tide-plus-rain coupling risk.
 - `Storm Bot`: reads National Hurricane Center Atlantic outlook and advisory feeds.
+- `Verification Agent`: checks resident reports against BayGuard’s live signal stack.
 - `Final Judge`: combines the specialist bot outputs into one Tampa posture.
 
 ### Gemini role
 
-If `GEMINI_API_KEY` is configured, Gemini can act as the final synthesis judge. The app still keeps deterministic guardrails around the verdict so the final posture cannot jump wildly away from the measured sensor evidence.
+If `GEMINI_API_KEY` is configured, Gemini can:
+
+- refine the final synthesis judge
+- assist with citizen-report verification
+- support more natural emergency-language generation
+
+The app still keeps deterministic guardrails around the verdict so the final posture cannot jump wildly away from the measured sensor evidence.
+
+## What we built
+
+BayGuard’s core technical work is in:
+
+- Tampa-specific zone modeling and incident scoring
+- live source ingestion from NWS, NOAA, and NHC
+- the multi-agent orchestration layer
+- community report verification
+- Google Maps operations view
+- SMS roster and dispatch workflow
+
+External services are used as inputs and infrastructure, but the product logic, UI, orchestration, verification flow, and Tampa-specific modeling are implemented in this repo.
 
 ## Project structure
 
@@ -188,10 +241,13 @@ server/
   data-sources.ts   # NWS, NOAA, and NHC adapters
   orchestrator.ts   # bot scoring + final judge logic
   index.ts          # Express API server
+  reports/          # community report verification + storage
 shared/
   types.ts          # shared contracts between API and UI
 src/
   App.tsx           # dashboard shell
+  pages/
+    ReportsPage.tsx # community reporting + verification
   components/
     IntelMap.tsx    # Google Maps Tampa operations map
 ```
@@ -204,4 +260,3 @@ These checks should pass:
 npm run lint
 npm run build
 ```
-

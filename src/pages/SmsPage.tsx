@@ -34,10 +34,10 @@ const alertTypeOptions: Array<{ value: SmsAlertType; label: string }> = [
   { value: 'weather', label: 'Weather' },
 ]
 const dispatchOptions: Array<{ value: SimulationScenario; label: string }> = [
-  { value: 'live', label: 'Live Tampa feeds' },
-  { value: 'flood', label: 'Flood drill' },
-  { value: 'hurricane', label: 'Hurricane drill' },
-  { value: 'compound', label: 'Compound event' },
+  { value: 'live', label: 'Live Tampa updates' },
+  { value: 'flood', label: 'Flood practice' },
+  { value: 'hurricane', label: 'Hurricane practice' },
+  { value: 'compound', label: 'Combined weather event' },
 ]
 
 function SmsPage({ activeScenario }: SmsPageProps) {
@@ -57,7 +57,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
   const loadSmsState = useCallback(async () => {
     const response = await fetch('/api/sms')
     if (!response.ok) {
-      throw new Error('BayGuard could not load the SMS control room.')
+      throw new Error('BayGuard could not load the text alert page.')
     }
 
     const data = (await response.json()) as SmsCenterState
@@ -216,11 +216,11 @@ function SmsPage({ activeScenario }: SmsPageProps) {
     <div className="page-grid page-grid-sms">
       <section className="hero-card sms-hero">
         <div className="hero-mast">
-          <p className="page-kicker">SMS control room</p>
-          <h3>Text residents when Tampa conditions escalate</h3>
+          <p className="page-kicker">Text alerts</p>
+          <h3>Text people when Tampa conditions become more serious</h3>
           <p>
-            Add subscribers, keep drills in dry-run mode, and switch to live sending only when
-            Twilio plus `SMS_SENDING_ENABLED=1` are in place.
+            Add subscribers, try practice message runs, and switch to live alerts when your
+            message service is ready.
           </p>
         </div>
 
@@ -230,9 +230,9 @@ function SmsPage({ activeScenario }: SmsPageProps) {
               <Smartphone size={18} />
             </div>
             <div>
-              <span>Provider</span>
-              <strong>{centerState ? `${centerState.provider} ${centerState.sendMode}` : '--'}</strong>
-              <small>{centerState?.note ?? 'Loading SMS transport status...'}</small>
+              <span>Sending service</span>
+              <strong>{centerState ? formatServiceLabel(centerState.provider, centerState.sendMode) : '--'}</strong>
+              <small>{centerState ? formatServiceNote(centerState.provider, centerState.sendMode) : 'Loading text message status...'}</small>
             </div>
           </article>
 
@@ -246,7 +246,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
                 {centerState?.subscribers.filter((subscriber) => subscriber.isActive).length ?? '--'}
               </strong>
               <small>
-                Threshold-based sends with a {centerState?.cooldownMinutes ?? '--'} minute cooldown
+                Texts are spaced out with a {centerState?.cooldownMinutes ?? '--'} minute pause between sends
               </small>
             </div>
           </article>
@@ -256,14 +256,14 @@ function SmsPage({ activeScenario }: SmsPageProps) {
               <ShieldCheck size={18} />
             </div>
             <div>
-              <span>Scheduler</span>
+              <span>Automatic checks</span>
               <strong>
                 {centerState?.schedulerEnabled
                   ? `Every ${centerState.evaluationIntervalMinutes} min`
                   : 'Manual only'}
               </strong>
               <small>
-                Last evaluation:{' '}
+                Last check:{' '}
                 {centerState?.lastEvaluationAt
                   ? formatTimestamp(centerState.lastEvaluationAt)
                   : 'Not yet recorded'}
@@ -359,7 +359,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
         <div className="panel-head">
           <div>
             <p className="page-kicker">Dispatch</p>
-            <h3>Trigger live or drill SMS runs</h3>
+            <h3>Send a live or practice text alert</h3>
           </div>
           <Send size={18} />
         </div>
@@ -380,16 +380,16 @@ function SmsPage({ activeScenario }: SmsPageProps) {
           </label>
 
           <div className="empty-block">
-            <strong>How it works</strong>
-            <p>
-              Live sends respect the normal threshold and cooldown. Drill scenarios are forced so
-              you can test message flows without waiting for a real event.
-            </p>
+              <strong>How it works</strong>
+              <p>
+              Live sends wait until conditions are serious enough. Practice scenarios let you test
+              the flow right away without waiting for a real event.
+              </p>
           </div>
 
           <button type="button" className="primary-action" onClick={handleDispatch} disabled={isDispatching}>
             <BellRing size={16} />
-            <span>{isDispatching ? 'Running dispatch' : 'Run dispatch now'}</span>
+            <span>{isDispatching ? 'Sending now' : 'Send now'}</span>
           </button>
         </div>
       </section>
@@ -410,7 +410,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
         {isLoading ? (
           <div className="empty-block">
             <strong>Loading subscribers</strong>
-            <p>BayGuard is reading the SMS roster.</p>
+            <p>BayGuard is loading saved phone numbers.</p>
           </div>
         ) : centerState?.subscribers.length ? (
           <div className="stack-list">
@@ -454,7 +454,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
         ) : (
           <div className="empty-block">
             <strong>No one is subscribed yet</strong>
-            <p>Add at least one phone number before you run a flood or hurricane drill.</p>
+            <p>Add at least one phone number before you try a flood or hurricane practice run.</p>
           </div>
         )}
       </section>
@@ -481,8 +481,8 @@ function SmsPage({ activeScenario }: SmsPageProps) {
                     <strong>{dispatch.headline}</strong>
                     <span>
                       {dispatch.scenario === 'live'
-                        ? 'Live evaluation'
-                        : `${formatScenario(dispatch.scenario)} drill`}
+                        ? 'Live update'
+                        : `${formatScenario(dispatch.scenario)} practice run`}
                     </span>
                   </div>
                   <span className={`severity-chip severity-${dispatch.threatLevel}`}>
@@ -491,7 +491,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
                 </div>
                 <p>{dispatch.reason}</p>
                 <small>
-                  {formatTimestamp(dispatch.createdAt)} • {dispatch.provider} •{' '}
+                  {formatTimestamp(dispatch.createdAt)} • {formatProviderName(dispatch.provider)} •{' '}
                   {dispatch.deliveredCount}/{dispatch.recipientCount} delivered • {dispatch.status}
                 </small>
               </article>
@@ -500,7 +500,7 @@ function SmsPage({ activeScenario }: SmsPageProps) {
         ) : (
           <div className="empty-block">
             <strong>No sends yet</strong>
-            <p>Your next live threshold crossing or drill run will appear here.</p>
+            <p>Your next live send or practice run will appear here.</p>
           </div>
         )}
       </section>
@@ -519,10 +519,34 @@ function formatScenario(scenario: SimulationScenario): string {
     case 'hurricane':
       return 'Hurricane'
     case 'compound':
-      return 'Compound event'
+      return 'Combined weather event'
     default:
       return 'Live'
   }
+}
+
+function formatServiceLabel(provider: SmsCenterState['provider'], sendMode: SmsCenterState['sendMode']): string {
+  if (provider === 'twilio') {
+    return sendMode === 'live' ? 'Twilio live' : 'Twilio practice'
+  }
+
+  return sendMode === 'live' ? 'Practice service live' : 'Practice service'
+}
+
+function formatServiceNote(provider: SmsCenterState['provider'], sendMode: SmsCenterState['sendMode']): string {
+  if (provider === 'twilio' && sendMode === 'live') {
+    return 'Real text alerts are turned on for active subscribers.'
+  }
+
+  if (provider === 'twilio') {
+    return 'Twilio is connected, but BayGuard is still in practice mode.'
+  }
+
+  return 'Practice mode is on, so BayGuard records message runs without texting anyone.'
+}
+
+function formatProviderName(provider: SmsCenterState['provider']): string {
+  return provider === 'twilio' ? 'Twilio' : 'Practice mode'
 }
 
 function formatTimestamp(value: string): string {

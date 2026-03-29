@@ -4,6 +4,7 @@ import {
   MessageSquareWarning,
   RefreshCcw,
   ShieldCheck,
+  X,
 } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
@@ -32,6 +33,7 @@ function ReportsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [recheckingId, setRecheckingId] = useState<string | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
   const [notice, setNotice] = useState<NoticeState | null>(null)
   const [form, setForm] = useState({
     reporterName: '',
@@ -98,7 +100,7 @@ function ReportsPage() {
       }))
       setNotice({
         tone: 'success',
-        message: 'Report submitted. BayGuard checked it against the live signal stack.',
+        message: 'Report submitted. BayGuard checked it against the latest conditions.',
       })
     } catch (error) {
       setNotice({
@@ -142,6 +144,35 @@ function ReportsPage() {
     }
   }
 
+  const handleRemove = async (reportId: string) => {
+    setRemovingId(reportId)
+    setNotice(null)
+
+    try {
+      const response = await fetch(`/api/reports?id=${encodeURIComponent(reportId)}`, {
+        method: 'DELETE',
+      })
+
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.message ?? 'Unable to remove this report right now.')
+      }
+
+      setReportState(payload as CommunityReportsState)
+      setNotice({
+        tone: 'success',
+        message: 'Report removed from recent history.',
+      })
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Unable to remove this report.',
+      })
+    } finally {
+      setRemovingId(null)
+    }
+  }
+
   const stats = reportState?.stats
 
   return (
@@ -152,15 +183,20 @@ function ReportsPage() {
           <h3>Let people report what they see. BayGuard checks whether it lines up.</h3>
           <p>
             Residents can flag flooding, blocked roads, outages, or storm damage. BayGuard then
-            cross-checks those claims against the live Tampa signal stack before surfacing a verdict.
+            compares those reports with the latest Tampa weather, water levels, outage activity,
+            evacuation zones, and available traffic conditions before showing a result.
           </p>
         </div>
 
         <div className="reports-summary-grid">
           <article className="hero-summary-card">
-            <span>Verification mode</span>
-            <strong>{reportState?.verificationMode === 'gemini' ? 'Gemini live' : 'Guardrail mode'}</strong>
-            <small>{reportState?.note ?? 'Loading BayGuard verification status...'}</small>
+            <span>Review mode</span>
+            <strong>{reportState?.verificationMode === 'gemini' ? 'AI-supported review' : 'Automatic review'}</strong>
+            <small>
+              {reportState?.verificationMode === 'gemini'
+                ? 'BayGuard is using AI to help review new reports.'
+                : 'BayGuard is comparing reports with live weather, water, outage, and travel updates.'}
+            </small>
           </article>
           <article className="hero-summary-card">
             <span>Confirmed reports</span>
@@ -190,7 +226,7 @@ function ReportsPage() {
         <div className="panel-head">
           <div>
             <p className="page-kicker">Submit report</p>
-            <h3>Send a ground-truth signal into BayGuard</h3>
+            <h3>Tell BayGuard what you are seeing</h3>
           </div>
           <MessageSquareWarning size={18} />
         </div>
@@ -278,8 +314,8 @@ function ReportsPage() {
       <section className="panel-card panel-card-soft">
         <div className="panel-head">
           <div>
-            <p className="page-kicker">Verification stack</p>
-            <h3>How BayGuard cross-checks each claim</h3>
+            <p className="page-kicker">How reports are checked</p>
+            <h3>How BayGuard reviews each report</h3>
           </div>
           <ShieldCheck size={18} />
         </div>
@@ -290,8 +326,8 @@ function ReportsPage() {
               <Activity size={18} />
             </div>
             <div>
-              <strong>Live signal match</strong>
-              <p>BayGuard compares the report against the citywide threat posture, zone scores, and current incidents.</p>
+              <strong>Current conditions</strong>
+              <p>BayGuard compares the report with nearby weather, water levels, outage activity, evacuation zones, and recent local alerts.</p>
             </div>
           </article>
           <article className="report-method-card">
@@ -299,8 +335,8 @@ function ReportsPage() {
               <BellRing size={18} />
             </div>
             <div>
-              <strong>Official feed check</strong>
-              <p>Current weather alerts, rain guidance, wind, tide, and tropical conditions are used as supporting evidence.</p>
+              <strong>Official updates</strong>
+              <p>Weather warnings, rainfall, wind, tides, and storm updates add supporting evidence.</p>
             </div>
           </article>
           <article className="report-method-card">
@@ -308,8 +344,8 @@ function ReportsPage() {
               <ShieldCheck size={18} />
             </div>
             <div>
-              <strong>AI verdict</strong>
-              <p>Gemini can refine the verdict when configured. Otherwise BayGuard falls back to deterministic guardrail verification.</p>
+              <strong>Review result</strong>
+              <p>BayGuard turns that evidence into a simple result: Confirmed, Likely, or Unverified.</p>
             </div>
           </article>
         </div>
@@ -325,10 +361,10 @@ function ReportsPage() {
         </div>
 
         {isLoading ? (
-          <div className="empty-block">
-            <strong>Loading report feed</strong>
-            <p>BayGuard is pulling the latest community claims and verification history.</p>
-          </div>
+            <div className="empty-block">
+              <strong>Loading report feed</strong>
+              <p>BayGuard is pulling the latest resident reports and recent review history.</p>
+            </div>
         ) : reportState?.reports.length ? (
           <div className="report-feed-grid">
             {reportState.reports.map((report) => (
@@ -336,15 +372,17 @@ function ReportsPage() {
                 key={report.id}
                 report={report}
                 onRecheck={handleRecheck}
+                onRemove={handleRemove}
                 isRechecking={recheckingId === report.id}
+                isRemoving={removingId === report.id}
               />
             ))}
           </div>
         ) : (
-          <div className="empty-block">
-            <strong>No community reports yet</strong>
-            <p>The first verified report will show up here with BayGuard’s confidence and evidence trail.</p>
-          </div>
+            <div className="empty-block">
+              <strong>No community reports yet</strong>
+              <p>The first checked report will show up here with BayGuard&apos;s result and supporting details.</p>
+            </div>
         )}
       </section>
     </div>
@@ -354,11 +392,15 @@ function ReportsPage() {
 function CommunityReportCard({
   report,
   onRecheck,
+  onRemove,
   isRechecking,
+  isRemoving,
 }: {
   report: CommunityReport
   onRecheck: (reportId: string) => void
+  onRemove: (reportId: string) => void
   isRechecking: boolean
+  isRemoving: boolean
 }) {
   return (
     <article className="community-report-card">
@@ -369,31 +411,43 @@ function CommunityReportCard({
           </span>
           <span className="report-type-pill">{formatReportType(report.type)}</span>
         </div>
-        <button
-          type="button"
-          className="ghost-action"
-          onClick={() => onRecheck(report.id)}
-          disabled={isRechecking}
-        >
-          <RefreshCcw size={16} className={isRechecking ? 'spin' : ''} />
-          <span>{isRechecking ? 'Checking' : 'Re-check'}</span>
-        </button>
+        <div className="community-report-actions">
+          <button
+            type="button"
+            className="report-remove-action"
+            onClick={() => onRemove(report.id)}
+            disabled={isRemoving}
+            aria-label="Remove report from history"
+            title="Remove report from history"
+          >
+            <X size={16} />
+          </button>
+          <button
+            type="button"
+            className="ghost-action"
+            onClick={() => onRecheck(report.id)}
+            disabled={isRechecking || isRemoving}
+          >
+            <RefreshCcw size={16} className={isRechecking ? 'spin' : ''} />
+            <span>{isRechecking ? 'Checking' : 'Re-check'}</span>
+          </button>
+        </div>
       </div>
 
       <div className="community-report-meta">
         <strong>{report.zoneName ?? report.locationHint}</strong>
-        <span>{report.zoneName ? report.locationHint : 'Community-submitted location'}</span>
+          <span>{report.zoneName ? report.locationHint : 'Shared by a resident'}</span>
       </div>
 
       <p className="community-report-body">{report.details}</p>
 
       <div className="community-report-verdict">
         <div>
-          <span className="page-kicker">BayGuard verdict</span>
+          <span className="page-kicker">BayGuard check</span>
           <h4>{report.verification.confidence}% confidence</h4>
         </div>
         <small>
-          {report.verification.mode === 'gemini' ? 'Gemini-assisted cross-check' : 'Fallback signal cross-check'} · Checked{' '}
+          {report.verification.mode === 'gemini' ? 'AI-assisted review' : 'Automatic review'} · Checked{' '}
           {formatTimestamp(report.verification.checkedAt)}
         </small>
       </div>

@@ -9,6 +9,7 @@ import {
   ApiError,
   createCommunityReportPayload,
   createSmsSubscriberPayload,
+  deleteCommunityReportPayload,
   dispatchSmsPayload,
   evacuatePayload,
   evaluateSmsPayload,
@@ -97,6 +98,23 @@ app.post('/api/reports/verify', async (request, response) => {
       error instanceof ApiError
         ? error.payload
         : { message: 'Unable to re-check this community report.' },
+    )
+  }
+})
+
+app.delete('/api/reports', async (request, response) => {
+  try {
+    response.json(
+      await deleteCommunityReportPayload({
+        id: typeof request.query.id === 'string' ? request.query.id : undefined,
+      }),
+    )
+  } catch (error) {
+    const status = error instanceof ApiError ? error.status : 404
+    response.status(status).json(
+      error instanceof ApiError
+        ? error.payload
+        : { message: 'Unable to remove this community report.' },
     )
   }
 })

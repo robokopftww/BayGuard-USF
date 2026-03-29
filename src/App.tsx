@@ -2,9 +2,11 @@ import {
   Activity,
   ArrowUpRight,
   BellRing,
+  Bot,
   CarFront,
   CircleAlert,
   Compass,
+  DatabaseZap,
   House,
   Map,
   MessageSquareWarning,
@@ -12,7 +14,9 @@ import {
   ShieldAlert,
   Siren,
   Smartphone,
+  Sparkles,
   Waves,
+  Workflow,
   Wind,
 } from 'lucide-react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
@@ -22,7 +26,7 @@ import { IntelMap } from './components/IntelMap'
 import ReportsPage from './pages/ReportsPage'
 import SmsPage from './pages/SmsPage'
 import './App.css'
-import type { IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types'
+import type { CommunityReportsState, IntelSnapshot, SimulationScenario, ThreatLevel } from '../shared/types'
 
 function App() {
   const location = useLocation()
@@ -31,6 +35,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const applyScenario = useCallback((nextScenario: SimulationScenario) => {
+    setIsLoading(true)
+    setScenario(nextScenario)
+  }, [])
 
   const fetchIntel = useCallback(async (forceRefresh = false, selectedScenario: SimulationScenario) => {
     try {
@@ -85,11 +94,7 @@ function App() {
   const incidents = snapshot?.incidents ?? []
   const zones = snapshot?.zones ?? []
   const activePage = pageMeta[location.pathname] ?? pageMeta['/']
-  const liveContextLabel = snapshot
-    ? snapshot.simulation.isSimulated
-      ? snapshot.simulation.label
-      : 'Live Tampa feeds'
-    : 'Connecting'
+  const liveContextLabel = snapshot ? scenarioLabel(scenario) : 'Connecting'
 
   return (
     <div className="shell">
@@ -103,7 +108,7 @@ function App() {
           </div>
           <div>
             <p className="rail-label">BayGuard</p>
-            <h1>Tampa Ops</h1>
+            <h1>Tampa Watch</h1>
           </div>
         </div>
 
@@ -125,15 +130,15 @@ function App() {
         </nav>
 
         <div className="rail-status">
-          <p className="rail-label">Current posture</p>
+          <p className="rail-label">Current status</p>
           <div className={`severity-band ${severityClass(overview?.threatLevel ?? 'low')}`}>
             <span className="band-dot" />
             <span>{overview ? formatThreat(overview.threatLevel) : 'Booting'}</span>
           </div>
           <p className="rail-note">
             {snapshot?.simulation.isSimulated
-              ? `${snapshot.simulation.label}: ${snapshot.simulation.description}`
-              : 'Live Tampa feeds are driving the dashboard right now.'}
+              ? `${scenarioLabel(scenario)} is active so you can preview how BayGuard responds.`
+              : 'Live Tampa updates are powering the page right now.'}
           </p>
         </div>
 
@@ -168,7 +173,7 @@ function App() {
               <select
                 id="scenario-select"
                 value={scenario}
-                onChange={(event) => setScenario(event.target.value as SimulationScenario)}
+                onChange={(event) => applyScenario(event.target.value as SimulationScenario)}
               >
                 {scenarioOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -198,7 +203,9 @@ function App() {
             element={
               <OverviewPage
                 coastal={coastal}
+                currentScenario={scenario}
                 incidents={incidents}
+                onLaunchScenario={applyScenario}
                 overview={overview}
                 snapshot={snapshot}
                 tropical={tropical}
@@ -213,6 +220,19 @@ function App() {
               <MapPage
                 coastal={coastal}
                 incidents={incidents}
+                snapshot={snapshot}
+                zones={zones}
+              />
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <AboutPage
+                currentScenario={scenario}
+                incidents={incidents}
+                onLaunchScenario={applyScenario}
+                overview={overview}
                 snapshot={snapshot}
                 zones={zones}
               />
@@ -242,7 +262,9 @@ function App() {
 
 interface OverviewPageProps {
   coastal: IntelSnapshot['signals']['coastal'] | undefined
+  currentScenario: SimulationScenario
   incidents: IntelSnapshot['incidents']
+  onLaunchScenario: (scenario: SimulationScenario) => void
   overview: IntelSnapshot['overview'] | undefined
   snapshot: IntelSnapshot | null
   tropical: IntelSnapshot['signals']['tropical'] | undefined
@@ -250,20 +272,55 @@ interface OverviewPageProps {
   zones: IntelSnapshot['zones']
 }
 
+function useCommunityReportsState() {
+  const [reportState, setReportState] = useState<CommunityReportsState | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/reports')
+        if (!response.ok) {
+          return
+        }
+
+        const payload = (await response.json()) as CommunityReportsState
+        if (isMounted) {
+          setReportState(payload)
+        }
+      } catch {
+        // Pages can still render if the reports feed is unavailable.
+      }
+    })()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  return reportState
+}
+
 function OverviewPage({
   coastal,
+  currentScenario,
   incidents,
+  onLaunchScenario,
   overview,
   snapshot,
   tropical,
   weather,
   zones,
 }: OverviewPageProps) {
+  const reportState = useCommunityReportsState()
+
   const topActions = snapshot?.recommendations.slice(0, 3) ?? fallbackActions
   const priorityZones = [...zones].sort((left, right) => right.score - left.score).slice(0, 3)
   const leadZone = priorityZones[0]
   const officialAlertCount = weather?.alerts.length ?? 0
   const activeWatchCount = zones.filter((zone) => zone.threatLevel !== 'low').length
+  const highRiskZoneCount = zones.filter((zone) => threatRank(zone.threatLevel) >= threatRank('elevated')).length
   const currentThreat = overview?.threatLevel ?? 'low'
   const statusLabel = friendlyThreatLabel(currentThreat)
   const threatNarrative = friendlyThreatNarrative(currentThreat)
@@ -291,6 +348,40 @@ function OverviewPage({
     },
   ] as const
   const overviewConfidence = overview ? `${Math.round(overview.confidence * 100)}%` : '--'
+  const verifiedReports = reportState?.stats.confirmedCount ?? 0
+  const totalReports = reportState?.stats.totalReports ?? 0
+  const connectedSourceCount = (snapshot?.sources.length ?? 0) + 1
+  const generatedAlertCount = officialAlertCount + incidents.length
+  const heroMetrics = [
+    {
+      label: 'Verified reports',
+      value: `${verifiedReports}`,
+      detail:
+        reportState?.stats.likelyCount && reportState.stats.likelyCount > 0
+          ? `${reportState.stats.likelyCount} more are likely`
+          : totalReports > 0
+            ? `${totalReports} report${totalReports === 1 ? '' : 's'} reviewed`
+            : 'No community claims yet',
+    },
+    {
+      label: 'High-risk zones',
+      value: `${highRiskZoneCount}`,
+      detail: `${activeWatchCount} neighborhoods under active monitoring`,
+    },
+    {
+      label: 'Alerts generated',
+      value: `${generatedAlertCount}`,
+      detail:
+        generatedAlertCount > 0
+          ? 'Warnings and recent updates are visible'
+          : 'No active warning package right now',
+    },
+    {
+      label: 'Live feeds connected',
+      value: `${connectedSourceCount}`,
+      detail: 'NWS, NOAA, NHC, plus community intelligence',
+    },
+  ] as const
 
   return (
     <div className="page-grid page-grid-overview">
@@ -301,71 +392,57 @@ function OverviewPage({
               <div className="hero-badge-row">
                 <span className={`overview-status-pill ${severityClass(currentThreat)}`}>{statusLabel}</span>
                 <span className="overview-meta-pill">
-                  {snapshot ? `Updated ${formatTimestamp(snapshot.generatedAt)}` : 'Loading live updates'}
+                    {snapshot ? `Updated ${formatTimestamp(snapshot.generatedAt)}` : 'Loading live updates'}
                 </span>
+                <span className="overview-meta-pill">{scenarioLabel(currentScenario)}</span>
               </div>
-              <p className="page-kicker">For Tampa residents</p>
-              <h3>{overview?.headline ?? 'Tampa is in quiet watch mode'}</h3>
+              <p className="page-kicker">Real-time Tampa safety updates</p>
+              <h3>BayGuard gives Tampa a clear view of changing flood and storm conditions.</h3>
               <p>
-                {compactText(
-                  overview?.summary ??
-                    'BayGuard is watching Tampa weather, flood, and tropical conditions so residents can quickly understand what matters right now.',
-                  170,
-                )}
+                BayGuard follows rainfall, tides, wind, and resident updates so people can quickly
+                see what matters now, where it matters most, and what to do next.
               </p>
             </div>
 
             <div className="hero-mast-bottom">
               <div className="hero-summary-grid">
-                <article className="hero-summary-card">
-                  <span>Most exposed area</span>
-                  <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
-                  <small>{leadZone?.neighborhood ?? 'Citywide monitoring is active.'}</small>
-                </article>
-                <article className="hero-summary-card">
-                  <span>Official alerts</span>
-                  <strong>{officialAlertCount}</strong>
-                  <small>{officialAlertCount ? 'Weather Service notices are active now.' : 'No official notices are active right now.'}</small>
-                </article>
-                <article className="hero-summary-card">
-                  <span>BayGuard confidence</span>
-                  <strong>{overviewConfidence}</strong>
-                  <small>{overview?.monitoringMode ?? 'Citywide posture is being monitored live.'}</small>
-                </article>
+                {heroMetrics.map((metric) => (
+                  <article key={metric.label} className="hero-summary-card">
+                    <span>{metric.label}</span>
+                    <strong>{metric.value}</strong>
+                    <small>{metric.detail}</small>
+                  </article>
+                ))}
               </div>
 
-              <div className="hero-actions-grid">
-                <QuickActionCard
-                  to="/map"
-                  title="Map room"
-                  caption="See which neighborhoods and bayfront zones need attention."
-                  icon={<Map size={18} />}
-                />
-                <QuickActionCard
-                  to="/reports"
-                  title="Community reports"
-                  caption="See what residents are reporting and how BayGuard checked it."
-                  icon={<MessageSquareWarning size={18} />}
-                />
-                <QuickActionCard
-                  to="/alerts"
-                  title="Alerts desk"
-                  caption="Review active incidents, official notices, and response language."
-                  icon={<BellRing size={18} />}
-                />
-                <QuickActionCard
-                  to="/sms"
-                  title="SMS alerts"
-                  caption="Manage subscribers and test live or drill dispatches."
-                  icon={<Smartphone size={18} />}
-                />
+              <div className="hero-cta-row">
+                <NavLink to="/map" className="hero-primary-link">
+                  <Map size={18} />
+                  <span>Open live risk map</span>
+                </NavLink>
+                <NavLink to="/about" className="hero-secondary-link">
+                  <Sparkles size={18} />
+                  <span>How BayGuard works</span>
+                </NavLink>
+                <NavLink to="/reports" className="hero-secondary-link">
+                  <MessageSquareWarning size={18} />
+                  <span>Check resident reports</span>
+                </NavLink>
+                <button
+                  type="button"
+                  className="hero-secondary-link"
+                  onClick={() => onLaunchScenario('flood')}
+                >
+                  <Workflow size={18} />
+                  <span>Preview flood scenario</span>
+                </button>
               </div>
             </div>
           </div>
 
           <aside className="overview-command-card">
             <div className="overview-command-intro">
-              <p className="page-kicker">At a glance</p>
+              <p className="page-kicker">Right now</p>
               <h4>{monitoringLabel}</h4>
               <p>{threatNarrative}</p>
             </div>
@@ -395,11 +472,11 @@ function OverviewPage({
             </div>
 
             <article className="overview-focus-card">
-              <span className="page-kicker">Focus area</span>
+              <span className="page-kicker">Why it matters</span>
               <strong>{leadZone?.name ?? 'Tampa Bay region'}</strong>
               <p>{compactText(leadZone?.reason ?? 'No standout hotspot at the moment.', 160)}</p>
               <small>
-                {formatCount(officialAlertCount, 'official alert')} and {formatCount(incidents.length, 'incident card')} are visible right now.
+                {formatCount(officialAlertCount, 'official warning')}, {formatCount(incidents.length, 'recent update')}, and BayGuard&apos;s confidence is {overviewConfidence}.
               </small>
             </article>
           </aside>
@@ -426,7 +503,7 @@ function OverviewPage({
           />
           <SignalMetric
             icon={<Compass size={18} />}
-            label="Atlantic desk"
+            label="Atlantic outlook"
             value={
               tropical
                 ? tropical.activeSystems.length > 0
@@ -434,7 +511,7 @@ function OverviewPage({
                   : 'Quiet basin'
                 : '--'
             }
-            detail={tropical ? tropical.basin : 'Waiting for NHC'}
+            detail={tropical ? tropical.basin : 'Waiting for hurricane outlook'}
           />
         </div>
       </section>
@@ -496,8 +573,8 @@ function OverviewPage({
       <section className="panel-card">
         <div className="panel-head">
           <div>
-            <p className="page-kicker">Incident queue</p>
-            <h3>{incidents.length ? 'Current incidents' : 'Quiet watchlist'}</h3>
+            <p className="page-kicker">Recent updates</p>
+            <h3>{incidents.length ? 'Current alerts and reports' : 'Nothing urgent right now'}</h3>
           </div>
           <CircleAlert size={18} />
         </div>
@@ -509,18 +586,18 @@ function OverviewPage({
             ))}
           </div>
         ) : (
-          <EmptyBlock
-            title="No active incidents"
-            body="The watch floor is monitoring conditions, but no alert card has crossed the operational threshold."
-          />
-        )}
+            <EmptyBlock
+              title="No active incidents"
+              body="BayGuard is still watching conditions, but nothing has risen to an active alert yet."
+            />
+          )}
       </section>
 
       <section className="panel-card panel-span-full">
         <div className="panel-head">
           <div>
-            <p className="page-kicker">Recommended next</p>
-            <h3>Best next moves if conditions start changing</h3>
+            <p className="page-kicker">What to do next</p>
+            <h3>Helpful next steps if conditions start changing</h3>
           </div>
           <Compass size={18} />
         </div>
@@ -531,6 +608,358 @@ function OverviewPage({
               <span className="takeaway-index">0{index + 1}</span>
               <p>{compactText(item, 140)}</p>
             </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+interface AboutPageProps {
+  currentScenario: SimulationScenario
+  incidents: IntelSnapshot['incidents']
+  onLaunchScenario: (scenario: SimulationScenario) => void
+  overview: IntelSnapshot['overview'] | undefined
+  snapshot: IntelSnapshot | null
+  zones: IntelSnapshot['zones']
+}
+
+function AboutPage({
+  currentScenario,
+  incidents,
+  onLaunchScenario,
+  overview,
+  snapshot,
+  zones,
+}: AboutPageProps) {
+  const reportState = useCommunityReportsState()
+  const currentThreat = overview?.threatLevel ?? 'low'
+  const activeWatchCount = zones.filter((zone) => zone.threatLevel !== 'low').length
+  const highRiskZoneCount = zones.filter((zone) => threatRank(zone.threatLevel) >= threatRank('elevated')).length
+  const officialAlertCount = snapshot?.signals.weather.alerts.length ?? 0
+  const verifiedReports = reportState?.stats.confirmedCount ?? 0
+  const connectedSourceCount = (snapshot?.sources.length ?? 0) + 1
+  const moduleCards = [
+    {
+      title: 'Live Risk Map',
+      caption: 'See exposed neighborhoods, recent alerts, and water levels on one Tampa map.',
+      proof: 'Live neighborhood map',
+      icon: <Map size={18} />,
+      to: '/map',
+    },
+    {
+      title: 'Resident Reports',
+      caption: 'Residents can report what they see while BayGuard checks it against current conditions.',
+      proof: 'Checked against current conditions',
+      icon: <MessageSquareWarning size={18} />,
+      to: '/reports',
+    },
+    {
+      title: 'Clear Alerts',
+      caption: 'Turns changing conditions into easy-to-read updates and guidance.',
+      proof: 'Clear summaries and alerts',
+      icon: <BellRing size={18} />,
+      to: '/alerts',
+    },
+    {
+      title: 'Text Alerts',
+      caption: 'Send important updates to subscribers during practice runs now and live events later.',
+      proof: 'Subscriber text updates',
+      icon: <Smartphone size={18} />,
+      to: '/sms',
+    },
+    {
+      title: 'Neighborhood Watch',
+      caption: 'Keeps a close eye on Tampa areas using tide, rain, wind, and local risk patterns.',
+      proof: 'Tampa-focused area scoring',
+      icon: <Activity size={18} />,
+      to: '/map',
+    },
+    {
+      title: 'Travel Guidance',
+      caption: 'Highlights streets and neighborhoods where travel may become harder or less safe.',
+      proof: 'Street and route awareness',
+      icon: <CarFront size={18} />,
+      to: '/alerts',
+    },
+  ] as const
+  const agentCards = [
+    {
+      title: 'Weather Watch',
+      summary: 'Watches rain, wind, and weather warnings to spot when conditions are starting to change.',
+      proof: 'Weather forecasts and warnings',
+      icon: <Wind size={18} />,
+    },
+    {
+      title: 'Flood Watch',
+      summary: 'Looks at water levels, rainfall, and flood-prone neighborhoods to catch trouble early.',
+      proof: 'Water levels and flood-prone areas',
+      icon: <Waves size={18} />,
+    },
+    {
+      title: 'Storm Watch',
+      summary: 'Tracks tropical updates and stronger storm signals that could quickly raise risk across Tampa.',
+      proof: 'Storm outlooks and local weather changes',
+      icon: <Siren size={18} />,
+    },
+    {
+      title: 'Report Checker',
+      summary: 'Compares resident reports with current conditions before BayGuard treats them as likely or confirmed.',
+      proof:
+        reportState?.verificationMode === 'gemini'
+          ? 'AI-supported review'
+          : 'Automatic report review',
+      icon: <ShieldAlert size={18} />,
+    },
+    {
+      title: 'Alert Writer',
+      summary: 'Turns fast-changing conditions into short, clear updates people can understand quickly.',
+      proof: 'Plain-language updates',
+      icon: <Sparkles size={18} />,
+    },
+  ] as const
+  const demoFlow = [
+    'A resident reports flooding on a Tampa street or waterfront block.',
+    'BayGuard checks that claim against weather warnings, rainfall, water levels, and nearby risk.',
+    'If the claim lines up, the map and alerts page highlight the exposed area.',
+    'BayGuard drafts a short update in plain language.',
+    'The text alerts page can send the update to subscribers or preview it as a practice run.',
+  ] as const
+  const credibilitySources = [
+    ...(snapshot?.sources ?? []),
+    {
+      name: 'Community reports',
+      url: '/reports',
+      updatedAt: reportState?.lastSubmissionAt,
+    },
+  ]
+  const whyTampaPoints = [
+    'Tampa combines bayfront exposure, low-lying roads, and fast afternoon rain in one metro area.',
+    'Neighborhoods like Davis Islands, Hyde Park, Rocky Point, and the University Area each react differently to the same storm.',
+    'BayGuard is tuned for Tampa-specific conditions instead of treating the city like a generic weather dashboard.',
+  ] as const
+
+  return (
+    <div className="page-grid page-grid-about">
+      <section className="hero-card overview-hero">
+        <div className="overview-hero-grid">
+          <div className="hero-mast-shell">
+            <div className="hero-mast">
+              <div className="hero-badge-row">
+                <span className={`overview-status-pill ${severityClass(currentThreat)}`}>
+                  {formatThreat(currentThreat)}
+                </span>
+                <span className="overview-meta-pill">{scenarioLabel(currentScenario)}</span>
+                <span className="overview-meta-pill">
+                  {snapshot ? `Updated ${formatTimestamp(snapshot.generatedAt)}` : 'Loading live updates'}
+                </span>
+              </div>
+              <p className="page-kicker">About BayGuard</p>
+              <h3>BayGuard helps Tampa understand flood and storm risk in plain language.</h3>
+              <p>
+                It brings together weather updates, water levels, resident reports, and alerts in
+                one place so people can quickly understand what is happening and what to do next.
+              </p>
+            </div>
+
+            <div className="hero-mast-bottom">
+              <div className="hero-summary-grid">
+                <article className="hero-summary-card">
+                  <span>Current risk</span>
+                  <strong>{formatThreat(currentThreat)}</strong>
+                  <small>{overview?.headline ?? 'Citywide monitoring is active.'}</small>
+                </article>
+                <article className="hero-summary-card">
+                  <span>Live sources</span>
+                  <strong>{connectedSourceCount}</strong>
+                  <small>Weather, water, storm, and resident updates</small>
+                </article>
+                <article className="hero-summary-card">
+                  <span>Verified reports</span>
+                  <strong>{verifiedReports}</strong>
+                  <small>Reports BayGuard can strongly support</small>
+                </article>
+                <article className="hero-summary-card">
+                  <span>Watched areas</span>
+                  <strong>{highRiskZoneCount}</strong>
+                  <small>{activeWatchCount} neighborhoods currently being watched</small>
+                </article>
+              </div>
+
+              <div className="hero-cta-row">
+                <button type="button" className="hero-primary-link" onClick={() => onLaunchScenario('compound')}>
+                  <Workflow size={18} />
+                  <span>Run the full BayGuard demo</span>
+                </button>
+                <NavLink to="/map" className="hero-secondary-link">
+                  <Map size={18} />
+                  <span>Open the live map</span>
+                </NavLink>
+                <NavLink to="/reports" className="hero-secondary-link">
+                  <MessageSquareWarning size={18} />
+                  <span>Open resident reports</span>
+                </NavLink>
+              </div>
+            </div>
+          </div>
+
+          <aside className="overview-command-card">
+            <div className="overview-command-intro">
+              <p className="page-kicker">At a glance</p>
+              <h4>What BayGuard is tracking right now</h4>
+              <p>
+                BayGuard brings together local weather, water, resident reports, and alerts in one
+                place so changes are easier to understand.
+              </p>
+            </div>
+
+            <div className="overview-pulse-row">
+              <article className="overview-pulse-card">
+                <span>Official alerts</span>
+                <strong>{officialAlertCount}</strong>
+              </article>
+              <article className="overview-pulse-card">
+                <span>Recent updates</span>
+                <strong>{incidents.length}</strong>
+              </article>
+            </div>
+
+            <article className="overview-focus-card">
+              <span className="page-kicker">Why it helps</span>
+              <strong>Make fast-changing conditions easier to understand</strong>
+              <p>
+                BayGuard helps people understand what is happening nearby, which reports seem
+                trustworthy, and what to do next.
+              </p>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section className="panel-card panel-span-full panel-card-soft">
+        <div className="panel-head">
+          <div>
+            <p className="page-kicker">Main features</p>
+            <h3>What BayGuard actually does</h3>
+          </div>
+          <DatabaseZap size={18} />
+        </div>
+
+        <div className="module-grid">
+          {moduleCards.map((module) => (
+            <QuickActionCard
+              key={module.title}
+              to={module.to}
+              title={module.title}
+              caption={module.caption}
+              detail={module.proof}
+              icon={module.icon}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="panel-card panel-span-full demo-flow-card">
+        <div className="panel-head">
+          <div>
+            <p className="page-kicker">End-to-end demo flow</p>
+            <h3>How one report moves through BayGuard</h3>
+          </div>
+          <Workflow size={18} />
+        </div>
+
+        <div className="demo-flow-grid">
+          {demoFlow.map((step, index) => (
+            <article key={step} className="demo-step-card">
+              <span className="takeaway-index">0{index + 1}</span>
+              <p>{step}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="demo-flow-actions">
+          <button type="button" className="primary-action" onClick={() => onLaunchScenario('flood')}>
+            <Workflow size={16} />
+            <span>Run flood scenario</span>
+          </button>
+          <button type="button" className="ghost-action" onClick={() => onLaunchScenario('hurricane')}>
+            <Workflow size={16} />
+            <span>Run hurricane scenario</span>
+          </button>
+          <NavLink to="/reports" className="hero-secondary-link hero-secondary-link-inline">
+            <MessageSquareWarning size={16} />
+            <span>Open resident reports</span>
+          </NavLink>
+        </div>
+      </section>
+
+      <section className="panel-card">
+        <div className="panel-head">
+          <div>
+            <p className="page-kicker">How BayGuard checks things</p>
+            <h3>How BayGuard checks different kinds of risk</h3>
+          </div>
+          <Bot size={18} />
+        </div>
+
+        <div className="agent-story-grid">
+          {agentCards.map((agent) => (
+            <article key={agent.title} className="agent-story-card">
+              <div className="agent-story-icon">{agent.icon}</div>
+              <div>
+                <strong>{agent.title}</strong>
+                <p>{agent.summary}</p>
+                <small>{agent.proof}</small>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel-card">
+        <div className="panel-head">
+          <div>
+            <p className="page-kicker">Live sources</p>
+            <h3>Connected Tampa updates</h3>
+          </div>
+          <DatabaseZap size={18} />
+        </div>
+
+        <div className="source-status-grid">
+          {credibilitySources.map((source) => (
+            <article key={source.name} className="source-status-card">
+              <div className="source-status-top">
+                <strong>{source.name}</strong>
+                <span className="source-live-pill">Connected</span>
+              </div>
+              <p>
+                {source.name === 'Community reports'
+                  ? 'Resident updates are compared with current weather and water conditions.'
+                  : 'A live source BayGuard checks while watching Tampa conditions.'}
+              </p>
+              <small>
+                {source.updatedAt ? `Updated ${formatTimestamp(source.updatedAt)}` : 'Watching live'}
+              </small>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel-card panel-span-full">
+        <div className="panel-head">
+          <div>
+            <p className="page-kicker">Why Tampa?</p>
+            <h3>Why Tampa needs closer watching</h3>
+          </div>
+          <Compass size={18} />
+        </div>
+
+        <div className="why-tampa-list">
+          {whyTampaPoints.map((point, index) => (
+            <div key={point} className="recommendation-item">
+              <span className="takeaway-index">0{index + 1}</span>
+              <p>{point}</p>
+            </div>
           ))}
         </div>
       </section>
@@ -553,7 +982,7 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
       <section className="map-stage">
         <div className="panel-head">
           <div>
-            <p className="page-kicker">Map room</p>
+            <p className="page-kicker">City map</p>
             <h3>Spatial watch over Tampa Bay</h3>
           </div>
           <div className="legend-strip">
@@ -604,8 +1033,8 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
       <section className="panel-card">
         <div className="panel-head">
           <div>
-            <p className="page-kicker">Water stations</p>
-            <h3>Coastal telemetry</h3>
+            <p className="page-kicker">Water levels</p>
+            <h3>Bay and tide readings</h3>
           </div>
           <Waves size={18} />
         </div>
@@ -640,14 +1069,14 @@ function AlertsPage({ alerts, incidents, overview, snapshot }: AlertsPageProps) 
       <section className="panel-card emphasis-card">
         <div className="panel-head">
           <div>
-            <p className="page-kicker">Alert posture</p>
-            <h3>{overview?.headline ?? 'Waiting for alert intelligence'}</h3>
+            <p className="page-kicker">Current alert level</p>
+            <h3>{overview?.headline ?? 'Waiting for new updates'}</h3>
           </div>
           <BellRing size={18} />
         </div>
         <p className="lead-copy">
           {overview?.summary ??
-            'The alert desk will light up here when official warnings or elevated incident signals arrive.'}
+            'This page will fill with warnings and important updates as conditions change.'}
         </p>
         <div className="recommendation-list">
           {(snapshot?.recommendations.length ? snapshot.recommendations : fallbackActions).map((item) => (
@@ -662,8 +1091,8 @@ function AlertsPage({ alerts, incidents, overview, snapshot }: AlertsPageProps) 
       <section className="panel-card">
         <div className="panel-head">
           <div>
-            <p className="page-kicker">Incident cards</p>
-            <h3>{incidents.length ? 'Operational incidents' : 'No incidents yet'}</h3>
+            <p className="page-kicker">Recent alerts</p>
+            <h3>{incidents.length ? 'What needs attention right now' : 'No active alerts yet'}</h3>
           </div>
           <Siren size={18} />
         </div>
@@ -676,8 +1105,8 @@ function AlertsPage({ alerts, incidents, overview, snapshot }: AlertsPageProps) 
           </div>
         ) : (
           <EmptyBlock
-            title="Quiet incident board"
-            body="No event has crossed the internal send threshold. Try the disaster scenarios to preview how alerts will appear."
+            title="Nothing urgent right now"
+            body="No local issue has turned into an active alert. Try a practice scenario to preview how this page changes."
           />
         )}
       </section>
@@ -706,8 +1135,8 @@ function AlertsPage({ alerts, incidents, overview, snapshot }: AlertsPageProps) 
           </div>
         ) : (
           <EmptyBlock
-            title="No NWS-issued notices"
-            body="The official-weather panel is clear. Internal incidents can still appear when local thresholds are exceeded."
+            title="No official weather notices"
+            body="The weather warning list is clear right now. Local alerts can still appear here if conditions worsen."
           />
         )}
       </section>
@@ -759,11 +1188,13 @@ function QuickActionCard({
   to,
   title,
   caption,
+  detail,
   icon,
 }: {
   to: string
   title: string
   caption: string
+  detail?: string
   icon: ReactNode
 }) {
   return (
@@ -772,6 +1203,7 @@ function QuickActionCard({
       <div>
         <strong>{title}</strong>
         <span>{caption}</span>
+        {detail ? <small>{detail}</small> : null}
       </div>
       <div className="quick-action-foot">
         <small className="quick-action-link">Open page</small>
@@ -817,6 +1249,10 @@ function compactText(value: string, maxLength: number): string {
 
 function formatCount(value: number, label: string): string {
   return `${value} ${label}${value === 1 ? '' : 's'}`
+}
+
+function threatRank(level: ThreatLevel): number {
+  return ['low', 'guarded', 'elevated', 'high', 'severe'].indexOf(level)
 }
 
 function friendlyThreatLabel(level: ThreatLevel): string {
@@ -899,57 +1335,68 @@ function waterfrontGuidance(level: ThreatLevel, peakWaterFt?: number): string {
   }
 }
 
+function scenarioLabel(scenario: SimulationScenario): string {
+  return scenarioOptions.find((option) => option.value === scenario)?.label ?? 'Live Tampa feeds'
+}
+
 const fallbackActions = [
-  'Keep the watch floor polling every few minutes while no major alert is active.',
-  'Use the scenario selector to preview flood, hurricane, and compound-event workflows.',
-  'Use the SMS page to manage subscribers and rehearse dry-run drills before live texting is enabled.',
+  'BayGuard will keep checking Tampa conditions every few minutes while no major alert is active.',
+  'Use the scenario selector to preview flood, hurricane, and combined-weather scenarios.',
+  'Use the text alerts page to manage subscribers and test practice messages before live texting is turned on.',
 ]
 
 const scenarioOptions: Array<{ value: SimulationScenario; label: string }> = [
-  { value: 'live', label: 'Live Tampa feeds' },
-  { value: 'flood', label: 'Flood drill' },
-  { value: 'hurricane', label: 'Hurricane drill' },
-  { value: 'compound', label: 'Compound event' },
+  { value: 'live', label: 'Live Tampa updates' },
+  { value: 'flood', label: 'Flood practice' },
+  { value: 'hurricane', label: 'Hurricane practice' },
+  { value: 'compound', label: 'Combined weather event' },
 ]
 
 const navItems = [
-  { to: '/', label: 'Overview', caption: 'Citywide posture', icon: Compass },
-  { to: '/map', label: 'Map Room', caption: 'Spatial signal view', icon: Map },
-  { to: '/reports', label: 'Reports', caption: 'Community verification', icon: MessageSquareWarning },
+  { to: '/', label: 'Overview', caption: 'Citywide update', icon: Compass },
+  { to: '/map', label: 'Map', caption: 'Neighborhood view', icon: Map },
+  { to: '/reports', label: 'Reports', caption: 'Resident updates', icon: MessageSquareWarning },
   { to: '/alerts', label: 'Alerts', caption: 'Incidents and notices', icon: BellRing },
-  { to: '/sms', label: 'SMS', caption: 'Subscribers and dispatch', icon: Smartphone },
+  { to: '/sms', label: 'SMS', caption: 'Text alerts', icon: Smartphone },
+  { to: '/about', label: 'About', caption: 'How it works', icon: Sparkles },
 ]
 
 const pageMeta: Record<string, { kicker: string; title: string; description: string }> = {
   '/': {
     kicker: 'Overview',
-    title: 'Know what Tampa needs right now.',
+    title: 'A real-time Tampa safety hub for flood, storm, and resident updates.',
     description:
-      'BayGuard turns weather, flood, and storm monitoring into a clear front page that people can understand in seconds.',
+      'BayGuard brings together weather, water, and resident updates so people can quickly see what is changing across Tampa.',
+  },
+  '/about': {
+    kicker: 'About',
+    title: 'How BayGuard works across the city.',
+    description:
+      'Use this page to see what BayGuard does, how reports are checked, and why Tampa needs close monitoring.',
   },
   '/map': {
     kicker: 'Map',
-    title: 'A dedicated spatial view for neighborhoods, incidents, and coastal telemetry.',
+    title: 'A live city map for neighborhoods, alerts, and water levels.',
     description:
-      'Use the map room when you need to understand where conditions are building instead of just how severe they are.',
+      'Use the map to see where conditions are building, not just how severe they are.',
   },
   '/reports': {
     kicker: 'Reports',
-    title: 'A place for resident reports and BayGuard verification.',
+    title: 'Resident reports checked against current conditions.',
     description:
-      'Residents can submit what they are seeing on the ground while BayGuard checks those claims against live Tampa conditions.',
+      'Residents can share what they are seeing on the ground while BayGuard compares those reports with current Tampa conditions.',
   },
   '/alerts': {
     kicker: 'Alerts',
-    title: 'A focused page for incidents, official notices, and action language.',
+    title: 'Warnings, local updates, and what to do next.',
     description:
-      'This alert desk is built for escalation: what happened, how serious it is, and what the operations team should say next.',
+      'Use this page to see what happened, how serious it is, and which steps make sense next.',
   },
   '/sms': {
     kicker: 'SMS',
-    title: 'A simple control room for who gets texted and when.',
+    title: 'A simple place to manage text alerts.',
     description:
-      'Manage the BayGuard SMS roster, keep drills in dry-run mode, and switch to live sending only after Twilio is configured.',
+      'Add subscribers, try practice message runs, and switch to live text alerts when your message service is ready.',
   },
 }
 

@@ -338,6 +338,11 @@
   align-items: start;
 }
 
+.page-grid-about {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
 .hero-card,
 .panel-card,
 .map-stage {
@@ -394,6 +399,14 @@
 .hero-mast-bottom {
   display: grid;
   gap: 0.9rem;
+}
+
+.hero-cta-row,
+.demo-flow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .hero-badge-row {
@@ -502,7 +515,7 @@
 
 .hero-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -533,6 +546,40 @@
   margin: 0.35rem 0 0.25rem;
   color: var(--slate-strong);
   font-size: 1.15rem;
+}
+
+.hero-primary-link,
+.hero-secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-block-size: 3rem;
+  padding: 0.84rem 1rem;
+  border-radius: 999px;
+  font: 600 0.84rem/1 var(--font-mono);
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.hero-primary-link {
+  color: #f8fbff;
+  background: linear-gradient(135deg, #111c34, #186f89);
+  box-shadow: 0 18px 30px rgba(18, 62, 84, 0.2);
+}
+
+.hero-secondary-link {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: var(--slate-strong);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+button.hero-secondary-link {
+  cursor: pointer;
+}
+
+.hero-secondary-link-inline {
+  min-block-size: 2.9rem;
 }
 
 .overview-pulse-row {
@@ -872,6 +919,14 @@
   line-height: 1.4;
 }
 
+.quick-action-card small {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--teal-700);
+  font: 600 0.74rem/1.4 var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
 .quick-action-link {
   color: var(--teal-700);
   font: 700 0.76rem/1 var(--font-mono);
@@ -1203,6 +1258,121 @@
   gap: 0.85rem;
 }
 
+.module-grid,
+.demo-flow-grid,
+.agent-story-grid,
+.source-status-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.module-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.demo-flow-card {
+  background:
+    radial-gradient(circle at top right, rgba(119, 183, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 255, 0.96));
+}
+
+.demo-flow-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.demo-step-card {
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+  border-radius: 24px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.05);
+}
+
+.demo-step-card p {
+  color: var(--slate-soft);
+}
+
+.agent-story-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agent-story-card,
+.source-status-card {
+  padding: 1rem;
+  border-radius: 26px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  background:
+    radial-gradient(circle at top right, rgba(85, 219, 196, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.8);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.05);
+}
+
+.agent-story-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.agent-story-icon {
+  inline-size: 2.85rem;
+  block-size: 2.85rem;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: #0d2d3c;
+  background: linear-gradient(135deg, rgba(64, 184, 162, 0.2), rgba(197, 255, 106, 0.3));
+}
+
+.agent-story-card strong,
+.source-status-card strong {
+  display: block;
+  color: var(--slate-strong);
+}
+
+.agent-story-card p,
+.source-status-card p,
+.source-status-card small {
+  color: var(--slate-soft);
+}
+
+.agent-story-card small {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--teal-700);
+  font: 600 0.74rem/1.35 var(--font-mono);
+}
+
+.source-status-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.source-status-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.source-live-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.48rem 0.7rem;
+  border-radius: 999px;
+  color: #0d5b5f;
+  background: rgba(64, 184, 162, 0.18);
+  font: 600 0.74rem/1 var(--font-mono);
+  text-transform: uppercase;
+}
+
+.why-tampa-list {
+  display: grid;
+  gap: 0.95rem;
+}
+
 .zone-spotlight {
   padding: 1rem;
   border-radius: 28px;
@@ -1319,6 +1489,12 @@
   align-items: center;
 }
 
+.community-report-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .verification-chip,
 .report-type-pill,
 .report-source-pill {
@@ -1391,6 +1567,32 @@
   color: var(--slate-soft);
   display: grid;
   gap: 0.45rem;
+}
+
+.report-remove-action {
+  inline-size: 2.9rem;
+  block-size: 2.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--slate-soft);
+  background: rgba(255, 255, 255, 0.82);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.report-remove-action:hover {
+  transform: translateY(-1px);
+  color: #8c2d16;
+  border-color: rgba(247, 113, 88, 0.26);
+  background: rgba(247, 113, 88, 0.1);
+}
+
+.report-remove-action:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .report-source-pill {
@@ -1588,6 +1790,7 @@
   }
 
   .page-grid-overview,
+  .page-grid-about,
   .page-grid-map,
   .page-grid-alerts,
   .page-grid-sms,
@@ -1605,9 +1808,17 @@
   .hero-summary-grid,
   .overview-pulse-row,
   .reports-summary-grid,
-  .report-feed-grid {
+  .report-feed-grid,
+  .module-grid,
+  .source-status-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .agent-story-grid,
+  .demo-flow-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
 }
 
 @media (max-width: 860px) {
@@ -1646,14 +1857,25 @@
   .takeaway-list-inline,
   .overview-pulse-row,
   .reports-summary-grid,
-  .report-feed-grid {
+  .report-feed-grid,
+  .module-grid,
+  .agent-story-grid,
+  .source-status-grid,
+  .demo-flow-grid {
     grid-template-columns: 1fr;
   }
 
   .hero-actions-grid,
   .sms-status-grid,
-  .field-grid {
+  .field-grid,
+  .hero-cta-row,
+  .demo-flow-actions {
     grid-template-columns: 1fr;
+  }
+
+  .hero-cta-row,
+  .demo-flow-actions {
+    display: grid;
   }
 
   .intel-map,

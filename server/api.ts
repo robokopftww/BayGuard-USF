@@ -9,6 +9,7 @@ import {
   unsubscribeFromSms,
 } from './notifications/service.js'
 import {
+  deleteCommunityReport,
   getCommunityReportsState,
   parseCommunityReportType,
   reverifyCommunityReport,
@@ -187,6 +188,20 @@ export async function reverifyCommunityReportPayload(body: { id?: unknown }) {
 
   try {
     return await reverifyCommunityReport(body.id)
+  } catch (error) {
+    throw new ApiError(404, {
+      message: error instanceof Error ? error.message : 'Report not found.',
+    })
+  }
+}
+
+export async function deleteCommunityReportPayload(input: { id?: unknown }) {
+  if (typeof input.id !== 'string' || !input.id.trim()) {
+    throw new ApiError(400, { message: 'Report id is required.' })
+  }
+
+  try {
+    return await deleteCommunityReport(input.id)
   } catch (error) {
     throw new ApiError(404, {
       message: error instanceof Error ? error.message : 'Report not found.',

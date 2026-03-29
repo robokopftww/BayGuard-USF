@@ -85,6 +85,57 @@ export interface TropicalSignal {
   activeSystems: TropicalSystemSignal[]
 }
 
+export interface TrafficIncidentSignal {
+  id: string
+  title: string
+  lat: number
+  lon: number
+  category: 'closure' | 'incident' | 'flood' | 'construction' | 'other'
+  roadName?: string
+  severity?: string
+  updatedAt?: string
+}
+
+export interface TrafficSignal {
+  updatedAt: string
+  provider: 'fl511'
+  enabled: boolean
+  note: string
+  incidents: TrafficIncidentSignal[]
+}
+
+export interface UtilityOutageIncidentSignal {
+  id: string
+  lat: number
+  lon: number
+  customerCount: number
+  status?: string
+  reason?: string
+  estimatedTimeOfRestoration?: string
+  updatedAt?: string
+}
+
+export interface UtilityOutageSignal {
+  updatedAt: string
+  provider: 'teco'
+  note: string
+  totalOutages: number
+  incidents: UtilityOutageIncidentSignal[]
+}
+
+export interface EvacuationZoneAssignment {
+  zoneId: string
+  zoneName: string
+  zoneCode?: string
+}
+
+export interface EvacuationSignal {
+  updatedAt: string
+  provider: 'hillsborough'
+  note: string
+  assignments: EvacuationZoneAssignment[]
+}
+
 export interface AgentIntel {
   id: 'weather' | 'flood' | 'storm' | 'judge'
   name: string
