@@ -530,6 +530,10 @@ function formatServiceLabel(provider: SmsCenterState['provider'], sendMode: SmsC
     return sendMode === 'live' ? 'Twilio live' : 'Twilio practice'
   }
 
+  if (provider === 'textbelt') {
+    return sendMode === 'live' ? 'Textbelt live' : 'Textbelt practice'
+  }
+
   return sendMode === 'live' ? 'Practice service live' : 'Practice service'
 }
 
@@ -542,11 +546,27 @@ function formatServiceNote(provider: SmsCenterState['provider'], sendMode: SmsCe
     return 'Twilio is connected, but BayGuard is still in practice mode.'
   }
 
+  if (provider === 'textbelt' && sendMode === 'live') {
+    return 'Textbelt is live and ready to send text alerts to active subscribers.'
+  }
+
+  if (provider === 'textbelt') {
+    return 'Textbelt is connected, but BayGuard is still in practice mode.'
+  }
+
   return 'Practice mode is on, so BayGuard records message runs without texting anyone.'
 }
 
 function formatProviderName(provider: SmsCenterState['provider']): string {
-  return provider === 'twilio' ? 'Twilio' : 'Practice mode'
+  if (provider === 'twilio') {
+    return 'Twilio'
+  }
+
+  if (provider === 'textbelt') {
+    return 'Textbelt'
+  }
+
+  return 'Practice mode'
 }
 
 function formatTimestamp(value: string): string {

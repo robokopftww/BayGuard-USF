@@ -4,7 +4,7 @@ export type AgentStatus = 'nominal' | 'watch' | 'alert' | 'critical'
 
 export type SimulationScenario = 'live' | 'flood' | 'hurricane' | 'compound'
 
-export type SmsProvider = 'mock' | 'twilio'
+export type SmsProvider = 'mock' | 'twilio' | 'textbelt'
 
 export type SmsAlertType = 'general' | 'flood' | 'storm' | 'weather'
 

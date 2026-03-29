@@ -37,7 +37,7 @@ BayGuard is strongest when judges can see the whole loop:
 - `NOAA CO-OPS API` for coastal water levels and tide predictions around Tampa Bay.
 - `NHC XML feeds` for Atlantic tropical outlook and active advisory monitoring.
 - `Google Maps JavaScript API` for the operations map and incident overlays.
-- Optional `Twilio` integration for resident SMS alerts.
+- Optional `Twilio` or `Textbelt` integration for resident SMS alerts.
 - `React + Vite` for the frontend.
 - `Express + TypeScript` for the orchestration backend.
 
@@ -77,7 +77,7 @@ SMS_SENDING_ENABLED=0
 
 The dashboard will still run without `GEMINI_API_KEY`, but the final judge will stay in deterministic fallback mode.
 The Tampa map will show a setup message until `VITE_GOOGLE_MAPS_API_KEY` is present.
-SMS runs in local dry-run mode until you explicitly switch `SMS_PROVIDER=twilio` and set `SMS_SENDING_ENABLED=1`.
+SMS runs in local dry-run mode until you explicitly switch `SMS_PROVIDER=twilio` or `SMS_PROVIDER=textbelt` and set `SMS_SENDING_ENABLED=1`.
 Local development uses `BAYGUARD_STORE_MODE=file` so the SMS roster persists in `data/sms-store.json`.
 
 4. Run the app in development:
@@ -152,6 +152,19 @@ TWILIO_MESSAGING_SERVICE_SID=...
 ```
 
 You can use `TWILIO_FROM_NUMBER` instead of `TWILIO_MESSAGING_SERVICE_SID` if needed.
+
+### Textbelt live sending
+
+If you already bought Textbelt credits, set:
+
+```bash
+SMS_PROVIDER=textbelt
+SMS_SENDING_ENABLED=1
+TEXTBELT_API_KEY=...
+TEXTBELT_SENDER=BayGuard
+```
+
+`TEXTBELT_SENDER` is optional, but it gives your messages a cleaner sender label when supported.
 
 ## Vercel deployment
 

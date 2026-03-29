@@ -16,6 +16,10 @@ export interface SmsRuntimeConfig {
     messagingServiceSid?: string
     fromNumber?: string
   }
+  textbelt?: {
+    apiKey: string
+    sender?: string
+  }
 }
 
 interface SmsSendResult {
@@ -49,7 +53,13 @@ function parseTriggerLevel(value: string | undefined): ThreatLevel {
 }
 
 export function getSmsRuntimeConfig(): SmsRuntimeConfig {
-  const desiredProvider = process.env.SMS_PROVIDER?.toLowerCase() === 'twilio' ? 'twilio' : 'mock'
+  const normalizedProvider = process.env.SMS_PROVIDER?.toLowerCase()
+  const desiredProvider: SmsProvider =
+    normalizedProvider === 'twilio'
+      ? 'twilio'
+      : normalizedProvider === 'textbelt'
+        ? 'textbelt'
+        : 'mock'
   const liveSendingEnabled = parseBoolean(process.env.SMS_SENDING_ENABLED, false)
   const schedulerEnabled = parseBoolean(process.env.SMS_AUTO_EVALUATOR_ENABLED, true)
   const evaluationIntervalMinutes = parseMinutes(process.env.SMS_EVALUATION_INTERVAL_MINUTES, 5)
@@ -66,6 +76,11 @@ export function getSmsRuntimeConfig(): SmsRuntimeConfig {
   const twilioConfigured =
     Boolean(twilio.accountSid && twilio.authToken) &&
     Boolean(twilio.messagingServiceSid || twilio.fromNumber)
+  const textbelt = {
+    apiKey: process.env.TEXTBELT_API_KEY ?? '',
+    sender: process.env.TEXTBELT_SENDER,
+  }
+  const textbeltConfigured = Boolean(textbelt.apiKey)
 
   if (desiredProvider === 'twilio' && twilioConfigured && liveSendingEnabled) {
     return {
@@ -77,6 +92,43 @@ export function getSmsRuntimeConfig(): SmsRuntimeConfig {
       triggerLevel,
       note: 'Twilio live sending is enabled. BayGuard will text active subscribers when thresholds are crossed.',
       twilio,
+    }
+  }
+
+  if (desiredProvider === 'textbelt' && textbeltConfigured && liveSendingEnabled) {
+    return {
+      provider: 'textbelt',
+      sendMode: 'live',
+      schedulerEnabled,
+      evaluationIntervalMinutes,
+      cooldownMinutes,
+      triggerLevel,
+      note: 'Textbelt live sending is enabled. BayGuard will text active subscribers when thresholds are crossed.',
+      textbelt,
+    }
+  }
+
+  if (desiredProvider === 'textbelt' && !textbeltConfigured) {
+    return {
+      provider: 'mock',
+      sendMode: 'dry-run',
+      schedulerEnabled,
+      evaluationIntervalMinutes,
+      cooldownMinutes,
+      triggerLevel,
+      note: 'Textbelt is selected but not fully configured, so BayGuard is logging dry-run SMS events only.',
+    }
+  }
+
+  if (desiredProvider === 'textbelt' && !liveSendingEnabled) {
+    return {
+      provider: 'mock',
+      sendMode: 'dry-run',
+      schedulerEnabled,
+      evaluationIntervalMinutes,
+      cooldownMinutes,
+      triggerLevel,
+      note: 'Textbelt can stay configured, but live sending is off until SMS_SENDING_ENABLED=1 is set.',
     }
   }
 
@@ -120,6 +172,54 @@ export async function sendSmsMessage(
   body: string,
   config: SmsRuntimeConfig,
 ): Promise<SmsSendResult> {
+  if (config.provider === 'textbelt' && config.textbelt) {
+    const formData = new URLSearchParams()
+    formData.set('phone', to)
+    formData.set('message', body)
+    formData.set('key', config.textbelt.apiKey)
+
+    if (config.textbelt.sender) {
+      formData.set('sender', config.textbelt.sender)
+    }
+
+    try {
+      const response = await fetch('https://textbelt.com/text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      })
+
+      const payload = (await response.json()) as {
+        success?: boolean
+        textId?: string | number
+        error?: string
+      }
+
+      if (!response.ok || !payload.success) {
+        return {
+          provider: 'textbelt',
+          status: 'failed',
+          error: payload.error ?? 'Textbelt rejected the SMS request.',
+        }
+      }
+
+      return {
+        provider: 'textbelt',
+        status: 'sent',
+        providerMessageId:
+          payload.textId !== undefined ? String(payload.textId) : `textbelt-${randomUUID()}`,
+      }
+    } catch (error) {
+      return {
+        provider: 'textbelt',
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown SMS provider error',
+      }
+    }
+  }
+
   if (config.provider !== 'twilio' || !config.twilio) {
     return {
       provider: 'mock',
