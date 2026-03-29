@@ -228,6 +228,7 @@ function App() {
             element={
               <MapPage
                 coastal={coastal}
+                currentScenario={scenario}
                 incidents={incidents}
                 snapshot={snapshot}
                 zones={zones}
@@ -975,6 +976,7 @@ function AboutPage({
 
 interface MapPageProps {
   coastal: IntelSnapshot['signals']['coastal'] | undefined
+  currentScenario: SimulationScenario
   incidents: IntelSnapshot['incidents']
   snapshot: IntelSnapshot | null
   zones: IntelSnapshot['zones']
@@ -984,7 +986,7 @@ function tideStatusLabel(maxPredictedFtNext24h: number): 'High' | 'Low' {
   return maxPredictedFtNext24h >= 2.3 ? 'High' : 'Low'
 }
 
-function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
+function MapPage({ coastal, currentScenario, incidents, snapshot, zones }: MapPageProps) {
   const [mapFilter, setMapFilter] = useState<MapHazard>('all')
   const [addressInput, setAddressInput] = useState('')
   const [isCheckingAddress, setIsCheckingAddress] = useState(false)
@@ -1039,6 +1041,11 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
       ? `Showing ${formatCount(filteredZones.length, 'watched area')} and ${formatCount(filteredIncidents.length, 'active issue')}. Low-risk areas are hidden to keep the map clear.`
       : `Showing ${hazardLabel(mapFilter).toLowerCase()} only: ${formatCount(filteredZones.length, 'watched area')} and ${formatCount(filteredIncidents.length, 'active issue')}.`
 
+  useEffect(() => {
+    setAddressCheck(null)
+    setAddressCheckError(null)
+  }, [currentScenario])
+
   const geocodeAddress = async (address: string) => {
     const geocoder = globalThis.google?.maps?.Geocoder ? new globalThis.google.maps.Geocoder() : null
     if (!geocoder) {
@@ -1079,6 +1086,7 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           address: addressInput.trim(),
+          scenario: currentScenario,
           ...(geocoded ?? {}),
         }),
       })
@@ -1184,7 +1192,8 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
           <form className="address-check-form" onSubmit={handleAddressCheck}>
             <p className="map-focus-note">
               Enter a Tampa-area address and BayGuard will check whether it falls in an evacuation
-              zone and whether conditions are normal, under watch, or evacuation-level.
+              zone and whether current {scenarioLabel(currentScenario).toLowerCase()} conditions are
+              normal, under watch, or evacuation-level.
             </p>
 
             <label className="field">
@@ -1238,7 +1247,10 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
                   <article className="snapshot-stat-card snapshot-stat-card-compact">
                     <span>Current status</span>
                     <strong>{evacuationStatusCopy(addressCheck)}</strong>
-                    <small>{addressCheck.shelter?.name ?? 'No shelter action needed right now.'}</small>
+                    <small>
+                      {addressCheck.shelter?.name ??
+                        `Checked against ${scenarioLabel(currentScenario).toLowerCase()}.`}
+                    </small>
                   </article>
                 </div>
 

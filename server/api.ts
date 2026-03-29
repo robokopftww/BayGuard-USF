@@ -214,19 +214,23 @@ function deriveCurrentStormCategory(snapshot: IntelSnapshot | null): number {
   const activeSystems = snapshot.signals.tropical.activeSystems.length
   const maxWind = snapshot.signals.weather.maxWindGustMphNext12h
 
-  if (hasHurricaneWarning || snapshot.overview.threatLevel === 'severe') {
+  if (hasHurricaneWarning) {
     return 4
   }
 
-  if (hasHurricaneWatch || snapshot.overview.threatLevel === 'high' || maxWind >= 75) {
+  if (hasHurricaneWatch) {
     return 3
   }
 
-  if (hasTropicalStormWarning || activeSystems > 0 || snapshot.overview.threatLevel === 'elevated' || maxWind >= 45) {
+  if (hasTropicalStormWarning) {
     return 2
   }
 
-  if (snapshot.overview.threatLevel === 'guarded' && (stormAlerts.length > 0 || maxWind >= 30)) {
+  if (activeSystems > 0 && (stormAlerts.length > 0 || maxWind >= 45)) {
+    return 2
+  }
+
+  if (activeSystems > 0 || (stormAlerts.length > 0 && maxWind >= 30)) {
     return 1
   }
 
@@ -234,16 +238,27 @@ function deriveCurrentStormCategory(snapshot: IntelSnapshot | null): number {
 }
 
 function deriveEvacuationStatus(
-  floodZone: EvacuationPlan['floodZone'],
   stormCategory: number,
   mustEvacuate: boolean,
+  snapshot: IntelSnapshot | null,
 ): EvacuationStatus {
   if (mustEvacuate) {
     return 'evacuate'
   }
 
-  if (stormCategory > 0 || floodZone === 'Unknown') {
-    return stormCategory > 0 ? 'watch' : 'normal'
+  const threatLevel = snapshot?.overview.threatLevel ?? 'low'
+  const isSimulated = snapshot?.simulation.isSimulated ?? false
+
+  if (stormCategory > 0) {
+    return 'watch'
+  }
+
+  if (isSimulated && threatLevel !== 'low') {
+    return 'watch'
+  }
+
+  if (threatLevel === 'elevated' || threatLevel === 'high' || threatLevel === 'severe') {
+    return 'watch'
   }
 
   return 'normal'
@@ -253,21 +268,23 @@ function buildFallbackEvacuationPlan(
   address: string,
   stormCategory: number,
   floodZone: EvacuationPlan['floodZone'],
+  snapshot: IntelSnapshot | null,
 ): EvacuationPlan {
   const threshold = evacuationThresholdForZone(floodZone)
   const mustEvacuate = threshold !== null && stormCategory >= threshold
-  const status = deriveEvacuationStatus(floodZone, stormCategory, mustEvacuate)
+  const status = deriveEvacuationStatus(stormCategory, mustEvacuate, snapshot)
   const matchingRule = fallbackZoneKeywords.find((rule) => rule.zone === floodZone)
   const shelter = mustEvacuate && matchingRule ? fallbackShelters[matchingRule.shelterIndex] : null
+  const contextLabel = snapshot?.simulation.label ?? 'current Tampa conditions'
 
   const reason =
     floodZone === 'Unknown'
-      ? stormCategory > 0
-        ? 'BayGuard could not confidently match this address to a Tampa evacuation zone, so keep checking local guidance as conditions change.'
+      ? status === 'watch'
+        ? `BayGuard could not confidently match this address to a Tampa evacuation zone, but ${contextLabel.toLowerCase()} still call for extra caution.`
         : 'BayGuard could not confidently match this address to a Tampa evacuation zone, but current conditions look normal right now.'
       : mustEvacuate
         ? `This address appears to sit in Zone ${floodZone}, and current storm conditions are strong enough for that zone to evacuate now.`
-        : stormCategory > 0
+        : status === 'watch'
           ? `This address appears to sit in Zone ${floodZone}, but current conditions are not strong enough for that zone to evacuate yet.`
           : `This address appears to sit in Zone ${floodZone}, and no evacuation is needed under current conditions.`
 
@@ -535,19 +552,22 @@ export async function evacuatePayload(body: {
   address?: unknown
   lat?: unknown
   lon?: unknown
+  scenario?: unknown
 }): Promise<EvacuationPlan> {
   const address = typeof body.address === 'string' ? body.address.trim() : ''
   const lat = typeof body.lat === 'number' ? body.lat : Number(body.lat)
   const lon = typeof body.lon === 'number' ? body.lon : Number(body.lon)
+  const scenario = parseScenario(body.scenario)
 
   if (!address) {
     throw new ApiError(400, { error: 'address is required' })
   }
 
-  const snapshot = await getLiveSnapshotForEvacuation()
+  const snapshot =
+    scenario === 'live' ? await getLiveSnapshotForEvacuation() : await getIntelPayload({ scenario })
   const stormCategory = deriveCurrentStormCategory(snapshot)
   const floodZone = await resolveFloodZone(address, Number.isFinite(lat) ? lat : null, Number.isFinite(lon) ? lon : null)
-  const fallbackPlan = buildFallbackEvacuationPlan(address, stormCategory, floodZone)
+  const fallbackPlan = buildFallbackEvacuationPlan(address, stormCategory, floodZone, snapshot)
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
     return fallbackPlan
@@ -611,7 +631,7 @@ export async function evacuatePayload(body: {
     const normalizedStatus =
       parsed.status === 'normal' || parsed.status === 'watch' || parsed.status === 'evacuate'
         ? parsed.status
-        : deriveEvacuationStatus(normalizedFloodZone, stormCategory, normalizedMustEvacuate)
+        : deriveEvacuationStatus(stormCategory, normalizedMustEvacuate, snapshot)
 
     return {
       address,
