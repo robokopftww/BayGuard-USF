@@ -971,12 +971,16 @@ interface MapPageProps {
   zones: IntelSnapshot['zones']
 }
 
+function tideStatusLabel(maxPredictedFtNext24h: number): 'High' | 'Low' {
+  return maxPredictedFtNext24h >= 2.3 ? 'High' : 'Low'
+}
+
 function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
   const topZones = [...zones].sort((left, right) => right.score - left.score).slice(0, 4)
 
   return (
     <div className="page-grid page-grid-map">
-      <section className="map-stage">
+      <section className="map-stage panel-span-full">
         <div className="panel-head">
           <div>
             <p className="page-kicker">City map</p>
@@ -1002,32 +1006,7 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
         </div>
       </section>
 
-      <section className="panel-card">
-        <div className="panel-head">
-          <div>
-            <p className="page-kicker">Priority zones</p>
-            <h3>Most exposed areas</h3>
-          </div>
-          <Activity size={18} />
-        </div>
-
-        <div className="stack-list">
-          {topZones.map((zone) => (
-            <article key={zone.id} className="zone-row">
-              <div className="zone-row-top">
-                <strong>{zone.name}</strong>
-                <span className={`severity-chip ${severityClass(zone.threatLevel)}`}>
-                  {formatThreat(zone.threatLevel)}
-                </span>
-              </div>
-              <p>{zone.neighborhood}</p>
-              <small>{zone.reason}</small>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel-card">
+      <section className="panel-card panel-span-full">
         <div className="panel-head">
           <div>
             <p className="page-kicker">Water levels</p>
@@ -1036,15 +1015,52 @@ function MapPage({ coastal, incidents, snapshot, zones }: MapPageProps) {
           <Waves size={18} />
         </div>
 
-        <div className="station-stack">
-          {coastal?.stations.map((station) => (
-            <article key={station.stationId} className="station-card-modern">
-              <div>
-                <strong>{station.name}</strong>
-                <span>{station.stationId}</span>
+        {coastal?.stations.length ? (
+          <div className="station-stack station-stack-grid">
+            {coastal.stations.map((station) => {
+              const tideStatus = tideStatusLabel(station.maxPredictedFtNext24h)
+
+              return (
+                <article key={station.stationId} className="station-card-modern">
+                  <div className="station-card-top">
+                    <div>
+                      <strong>{station.name}</strong>
+                    </div>
+                    <span className={`severity-chip ${tideStatus === 'High' ? 'severity-high' : 'severity-low'}`}>
+                      {tideStatus}
+                    </span>
+                  </div>
+                  <p>{station.latestObservedFt.toFixed(2)} ft observed</p>
+                  <small>Peak next 24h: {station.maxPredictedFtNext24h.toFixed(2)} ft</small>
+                </article>
+              )
+            })}
+          </div>
+        ) : (
+          <EmptyBlock title="Waiting on tide readings" body="The latest coastal station data has not loaded yet." />
+        )}
+      </section>
+
+      <section className="panel-card panel-span-full">
+        <div className="panel-head">
+          <div>
+            <p className="page-kicker">Priority zones</p>
+            <h3>Most exposed areas</h3>
+          </div>
+          <Activity size={18} />
+        </div>
+
+        <div className="priority-zone-grid">
+          {topZones.map((zone) => (
+            <article key={zone.id} className="zone-spotlight">
+              <div className="zone-row-top">
+                <strong>{zone.name}</strong>
+                <span className={`severity-chip ${severityClass(zone.threatLevel)}`}>
+                  {formatThreat(zone.threatLevel)}
+                </span>
               </div>
-              <p>{station.latestObservedFt.toFixed(2)} ft observed</p>
-              <small>Peak next 24h: {station.maxPredictedFtNext24h.toFixed(2)} ft</small>
+              <p>{zone.neighborhood}</p>
+              <small>{zone.reason}</small>
             </article>
           ))}
         </div>

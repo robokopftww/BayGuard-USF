@@ -319,7 +319,7 @@
 }
 
 .page-grid-map {
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr);
+  grid-template-columns: 1fr;
   align-items: start;
 }
 
@@ -1047,6 +1047,10 @@ button.hero-secondary-link {
   gap: 0.8rem;
 }
 
+.station-stack-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .agent-card-modern,
 .alert-card-modern,
 .official-alert-row,
@@ -1091,6 +1095,13 @@ button.hero-secondary-link {
 .alert-card-top,
 .official-alert-top,
 .zone-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.station-card-top {
   display: flex;
   justify-content: space-between;
   gap: 0.8rem;
@@ -1661,7 +1672,7 @@ button.hero-secondary-link {
 .map-loading,
 .map-fallback {
   inline-size: 100%;
-  block-size: 640px;
+  block-size: 780px;
 }
 
 .intel-map {
@@ -1683,14 +1694,22 @@ button.hero-secondary-link {
   color: var(--slate-strong);
 }
 
-.station-card-modern div {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
+.station-card-top > div {
+  display: grid;
+  gap: 0.18rem;
 }
 
 .station-card-modern p {
   margin-top: 0.65rem;
+  color: var(--slate-strong);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.station-card-modern small {
+  display: block;
+  margin-top: 0.28rem;
+  color: var(--slate-soft);
 }
 
 .emphasis-card {
@@ -1822,7 +1841,8 @@ button.hero-secondary-link {
   .reports-summary-grid,
   .report-feed-grid,
   .module-grid,
-  .source-status-grid {
+  .source-status-grid,
+  .station-stack-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1853,6 +1873,7 @@ button.hero-secondary-link {
   .alert-card-top,
   .official-alert-top,
   .zone-row-top,
+  .station-card-top,
   .topbar-controls {
     flex-direction: column;
   }
@@ -1893,7 +1914,7 @@ button.hero-secondary-link {
   .intel-map,
   .map-loading,
   .map-fallback {
-    block-size: 440px;
+    block-size: 520px;
   }
 
   .subscriber-row-top,
@@ -1903,5 +1924,9 @@ button.hero-secondary-link {
   .community-report-footer {
     flex-direction: column;
     align-items: start;
+  }
+
+  .station-stack-grid {
+    grid-template-columns: 1fr;
   }
 }
