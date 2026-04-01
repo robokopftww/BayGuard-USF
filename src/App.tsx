@@ -81,6 +81,8 @@ function App() {
   const alerts = weather?.alerts ?? []
   const incidents = snapshot?.incidents ?? []
   const zones = snapshot?.zones ?? []
+  const sources = snapshot?.sources ?? []
+  const alertBadgeCount = alerts.length + incidents.length
   const activePage = pageMeta[location.pathname] ?? pageMeta['/']
 
   return (
@@ -100,20 +102,26 @@ function App() {
         </div>
 
         <nav className="nav-stack" aria-label="Primary">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-            >
-              <item.icon size={18} />
-              <div>
-                <strong>{item.label}</strong>
-                <span>{item.caption}</span>
-              </div>
-            </NavLink>
-          ))}
+          {navItems.map((item) => {
+            const badge = item.to === '/alerts' ? alertBadgeCount : 0
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/'}
+                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+              >
+                <item.icon size={18} />
+                <div>
+                  <strong>
+                    {item.label}
+                    {badge > 0 && <span className="nav-badge">{badge}</span>}
+                  </strong>
+                  <span>{item.caption}</span>
+                </div>
+              </NavLink>
+            )
+          })}
         </nav>
 
         <div className="rail-status">
@@ -132,7 +140,9 @@ function App() {
         <div className="rail-footer">
           <div>
             <span className="rail-key">Updated</span>
-            <strong>{snapshot ? formatTimestamp(snapshot.generatedAt) : 'Loading...'}</strong>
+            <strong title={snapshot ? formatTimestamp(snapshot.generatedAt) : undefined}>
+              {snapshot ? formatRelativeTime(snapshot.generatedAt) : 'Loading...'}
+            </strong>
           </div>
           <div>
             <span className="rail-key">Agents</span>
@@ -199,6 +209,7 @@ function App() {
                 incidents={incidents}
                 overview={overview}
                 snapshot={snapshot}
+                sources={sources}
                 tropical={tropical}
                 weather={weather}
               />
@@ -241,6 +252,7 @@ interface OverviewPageProps {
   incidents: IntelSnapshot['incidents']
   overview: IntelSnapshot['overview'] | undefined
   snapshot: IntelSnapshot | null
+  sources: IntelSnapshot['sources']
   tropical: IntelSnapshot['signals']['tropical'] | undefined
   weather: IntelSnapshot['signals']['weather'] | undefined
 }
@@ -250,6 +262,7 @@ function OverviewPage({
   incidents,
   overview,
   snapshot,
+  sources,
   tropical,
   weather,
 }: OverviewPageProps) {
@@ -397,6 +410,41 @@ function OverviewPage({
           ))}
         </div>
       </section>
+
+      {sources.length > 0 && (
+        <section className="panel-card">
+          <div className="panel-head">
+            <div>
+              <p className="page-kicker">Live feeds</p>
+              <h3>Active data sources</h3>
+            </div>
+            <Activity size={18} />
+          </div>
+
+          <div className="sources-list">
+            {sources.map((source) => (
+              <article key={source.name} className="source-row">
+                <div className="source-row-top">
+                  <strong>{source.name}</strong>
+                  {source.updatedAt && (
+                    <span title={formatTimestamp(source.updatedAt)}>
+                      {formatRelativeTime(source.updatedAt)}
+                    </span>
+                  )}
+                </div>
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="source-link"
+                >
+                  {source.url}
+                </a>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
@@ -563,7 +611,11 @@ function AlertsPage({ alerts, incidents, overview, snapshot }: AlertsPageProps) 
                   <span>{alert.severity}</span>
                 </div>
                 <p>{alert.headline}</p>
-                <small>{alert.urgency}</small>
+                <small>
+                  {alert.urgency}
+                  {alert.effective ? ` · From ${formatTimestamp(alert.effective)}` : ''}
+                  {alert.ends ? ` · Until ${formatTimestamp(alert.ends)}` : ''}
+                </small>
               </article>
             ))}
           </div>
@@ -658,12 +710,24 @@ function formatThreat(level: ThreatLevel): string {
 }
 
 function formatTimestamp(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZoneName: 'short',
   }).format(new Date(value))
+}
+
+function formatRelativeTime(value: string): string {
+  const diffMs = Date.now() - new Date(value).getTime()
+  const mins = Math.floor(diffMs / 60_000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return formatTimestamp(value)
 }
 
 function compactText(value: string, maxLength: number): string {

@@ -921,6 +921,66 @@
   }
 }
 
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.3rem;
+  block-size: 1.3rem;
+  padding-inline: 0.3rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #f8fbff;
+  background: rgba(247, 113, 88, 0.85);
+  margin-left: 0.45rem;
+  vertical-align: middle;
+}
+
+.sources-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.source-row {
+  padding: 0.9rem 1rem;
+  border-radius: 22px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.source-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.source-row-top strong {
+  color: var(--slate-strong);
+  font-size: 0.9rem;
+}
+
+.source-row-top span {
+  color: var(--slate-soft);
+  font: 600 0.76rem/1 var(--font-mono);
+}
+
+.source-link {
+  color: var(--teal-700);
+  font-size: 0.78rem;
+  text-decoration: none;
+  word-break: break-all;
+  opacity: 0.8;
+  transition: opacity 150ms ease;
+}
+
+.source-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 @media (max-width: 1240px) {
   .shell {
     grid-template-columns: 1fr;
